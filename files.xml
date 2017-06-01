@@ -28,7 +28,7 @@
    <compilerflag value="-I${ANGLE_DIR}/src" />
    <compilerflag value="-I${ANGLE_DIR}/src/common/third_party/numerics" />
    <compilerflag value="-DANGLE_ENABLE_GLSL" />
-   <compilerflag value="-DANGLE_ENABLE_D3D9" />
+   <compilerflag value="-DANGLE_ENABLE_D3D9" unless="winrt"/>
    <compilerflag value="-DANGLE_ENABLE_D3D11" />
    <compilerflag value="-DANGLE_ENABLE_HLSL" />
    <compilerflag value="-DLIBANGLE_IMPLEMENTATION" />
@@ -103,35 +103,38 @@
       <file name="src/libANGLE/renderer/d3d/d3d11/Trim11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/VertexArray11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/VertexBuffer11.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d11/win32/NativeWindow11Win32.cpp" />
 
-      <section if="WINRT" >
+      <section if="winrt">
          <file name="src/libANGLE/renderer/d3d/d3d11/winrt/CoreWindowNativeWindow.cpp" />
          <file name="src/libANGLE/renderer/d3d/d3d11/winrt/InspectableNativeWindow.cpp" />
          <file name="src/libANGLE/renderer/d3d/d3d11/winrt/NativeWindow11WinRT.cpp" />
          <file name="src/libANGLE/renderer/d3d/d3d11/winrt/SwapChainPanelNativeWindow.cpp" />
       </section>
 
-      <file name="src/libANGLE/renderer/d3d/d3d9/Blit9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/Buffer9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/Context9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/DebugAnnotator9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/Fence9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/formatutils9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/Framebuffer9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/Image9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/IndexBuffer9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/NativeWindow9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/Query9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/Renderer9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/renderer9_utils.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/RenderTarget9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/ShaderExecutable9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/StateManager9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/SwapChain9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/TextureStorage9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/VertexBuffer9.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d9/VertexDeclarationCache.cpp" />
+      <section unless="winrt">
+         <file name="src/libANGLE/renderer/d3d/d3d11/win32/NativeWindow11Win32.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/Blit9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/Buffer9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/Context9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/DebugAnnotator9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/Fence9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/formatutils9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/Framebuffer9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/Image9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/IndexBuffer9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/NativeWindow9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/Query9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/Renderer9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/renderer9_utils.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/RenderTarget9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/ShaderExecutable9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/StateManager9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/SwapChain9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/TextureStorage9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/VertexBuffer9.cpp" />
+         <file name="src/libANGLE/renderer/d3d/d3d9/VertexDeclarationCache.cpp" />
+      </section>
+
       <file name="src/libANGLE/renderer/d3d/DeviceD3D.cpp" />
       <file name="src/libANGLE/renderer/d3d/DisplayD3D.cpp" />
       <file name="src/libANGLE/renderer/d3d/DynamicHLSL.cpp" />
