@@ -192,7 +192,7 @@
       <file name="src/common/mathutil.cpp" />
       <file name="src/common/MemoryBuffer.cpp" />
       <file name="src/common/string_utils.cpp" />
-      <file name="src/common/system_utils_win.cpp" />
+      <file name="src/common/system_utils_win.cpp" unless="winrt" />
       <file name="src/common/tls.cpp" />
       <file name="src/common/utilities.cpp" />
 
