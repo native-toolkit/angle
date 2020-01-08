@@ -26,11 +26,9 @@ class DebugTest : public ANGLETest
         setDebugEnabled(true);
     }
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
-
-        mDebugExtensionAvailable = extensionEnabled("GL_KHR_debug");
+        mDebugExtensionAvailable = IsGLExtensionEnabled("GL_KHR_debug");
         if (mDebugExtensionAvailable)
         {
             glEnable(GL_DEBUG_OUTPUT);
@@ -116,7 +114,7 @@ TEST_P(DebugTest, InsertMessage)
     GLenum typeBuf     = 0;
     GLenum idBuf       = 0;
     GLenum severityBuf = 0;
-    GLsizei lengthBuf = 0;
+    GLsizei lengthBuf  = 0;
     std::vector<char> messageBuf(messageLength + 1);
     GLuint ret =
         glGetDebugMessageLogKHR(1, static_cast<GLsizei>(messageBuf.size()), &sourceBuf, &typeBuf,
@@ -173,7 +171,7 @@ TEST_P(DebugTest, InsertMessageMultiple)
         GLenum typeBuf     = 0;
         GLenum idBuf       = 0;
         GLenum severityBuf = 0;
-        GLsizei lengthBuf = 0;
+        GLsizei lengthBuf  = 0;
         std::vector<char> messageBuf(messageLength + 1);
         GLuint ret =
             glGetDebugMessageLogKHR(1, static_cast<GLsizei>(messageBuf.size()), &sourceBuf,
@@ -405,12 +403,6 @@ TEST_P(DebugTest, ObjectPtrLabels)
 
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
-ANGLE_INSTANTIATE_TEST(DebugTest,
-                       ES2_D3D9(),
-                       ES2_D3D11(),
-                       ES3_D3D11(),
-                       ES2_OPENGL(),
-                       ES3_OPENGL(),
-                       ES2_VULKAN());
+ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(DebugTest);
 
 }  // namespace angle

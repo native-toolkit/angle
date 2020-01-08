@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2012 The ANGLE Project Authors. All rights reserved.
+// Copyright 2012 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,6 +9,8 @@
 
 #include "libANGLE/renderer/d3d/d3d11/RenderTarget11.h"
 
+#include "libANGLE/Context.h"
+#include "libANGLE/renderer/d3d/d3d11/Context11.h"
 #include "libANGLE/renderer/d3d/d3d11/Renderer11.h"
 #include "libANGLE/renderer/d3d/d3d11/SwapChain11.h"
 #include "libANGLE/renderer/d3d/d3d11/formatutils11.h"
@@ -194,13 +196,9 @@ const d3d11::Format &GetSurfaceFormatSet(bool depth, SwapChain11 *swapChain, Ren
 
 }  // anonymous namespace
 
-RenderTarget11::RenderTarget11(const d3d11::Format &formatSet) : mFormatSet(formatSet)
-{
-}
+RenderTarget11::RenderTarget11(const d3d11::Format &formatSet) : mFormatSet(formatSet) {}
 
-RenderTarget11::~RenderTarget11()
-{
-}
+RenderTarget11::~RenderTarget11() {}
 
 TextureRenderTarget11::TextureRenderTarget11(d3d11::RenderTargetView &&rtv,
                                              const TextureHelper11 &resource,
@@ -261,9 +259,7 @@ TextureRenderTarget11::TextureRenderTarget11(d3d11::DepthStencilView &&dsv,
     ASSERT(mFormatSet.formatID != angle::FormatID::NONE || mWidth == 0 || mHeight == 0);
 }
 
-TextureRenderTarget11::~TextureRenderTarget11()
-{
-}
+TextureRenderTarget11::~TextureRenderTarget11() {}
 
 const TextureHelper11 &TextureRenderTarget11::getTexture() const
 {
@@ -280,12 +276,14 @@ const d3d11::DepthStencilView &TextureRenderTarget11::getDepthStencilView() cons
     return mDepthStencil;
 }
 
-const d3d11::SharedSRV &TextureRenderTarget11::getShaderResourceView() const
+const d3d11::SharedSRV &TextureRenderTarget11::getShaderResourceView(
+    const gl::Context *context) const
 {
     return mShaderResource;
 }
 
-const d3d11::SharedSRV &TextureRenderTarget11::getBlitShaderResourceView() const
+const d3d11::SharedSRV &TextureRenderTarget11::getBlitShaderResourceView(
+    const gl::Context *context) const
 {
     return mBlitShaderResource;
 }
@@ -330,9 +328,7 @@ SurfaceRenderTarget11::SurfaceRenderTarget11(SwapChain11 *swapChain,
     ASSERT(mSwapChain);
 }
 
-SurfaceRenderTarget11::~SurfaceRenderTarget11()
-{
-}
+SurfaceRenderTarget11::~SurfaceRenderTarget11() {}
 
 GLsizei SurfaceRenderTarget11::getWidth() const
 {
@@ -376,16 +372,18 @@ const d3d11::DepthStencilView &SurfaceRenderTarget11::getDepthStencilView() cons
     return mSwapChain->getDepthStencil();
 }
 
-const d3d11::SharedSRV &SurfaceRenderTarget11::getShaderResourceView() const
+const d3d11::SharedSRV &SurfaceRenderTarget11::getShaderResourceView(
+    const gl::Context *context) const
 {
     return (mDepth ? mSwapChain->getDepthStencilShaderResource()
-                   : mSwapChain->getRenderTargetShaderResource());
+                   : mSwapChain->getRenderTargetShaderResource(GetImplAs<Context11>(context)));
 }
 
-const d3d11::SharedSRV &SurfaceRenderTarget11::getBlitShaderResourceView() const
+const d3d11::SharedSRV &SurfaceRenderTarget11::getBlitShaderResourceView(
+    const gl::Context *context) const
 {
     // The SurfaceRenderTargetView format should always be such that the normal SRV works for blits.
-    return getShaderResourceView();
+    return getShaderResourceView(context);
 }
 
 unsigned int SurfaceRenderTarget11::getSubresourceIndex() const

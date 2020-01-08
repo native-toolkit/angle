@@ -17,36 +17,62 @@
 namespace rx
 {
 
-class RenderbufferVk : public RenderbufferImpl, public vk::CommandGraphResource
+class RenderbufferVk : public RenderbufferImpl
 {
   public:
     RenderbufferVk(const gl::RenderbufferState &state);
     ~RenderbufferVk() override;
 
-    gl::Error onDestroy(const gl::Context *context) override;
+    void onDestroy(const gl::Context *context) override;
 
-    gl::Error setStorage(const gl::Context *context,
-                         GLenum internalformat,
-                         size_t width,
-                         size_t height) override;
-    gl::Error setStorageMultisample(const gl::Context *context,
-                                    size_t samples,
-                                    GLenum internalformat,
-                                    size_t width,
-                                    size_t height) override;
-    gl::Error setStorageEGLImageTarget(const gl::Context *context, egl::Image *image) override;
+    angle::Result setStorage(const gl::Context *context,
+                             GLenum internalformat,
+                             size_t width,
+                             size_t height) override;
+    angle::Result setStorageMultisample(const gl::Context *context,
+                                        size_t samples,
+                                        GLenum internalformat,
+                                        size_t width,
+                                        size_t height) override;
+    angle::Result setStorageEGLImageTarget(const gl::Context *context, egl::Image *image) override;
 
-    gl::Error getAttachmentRenderTarget(const gl::Context *context,
-                                        GLenum binding,
-                                        const gl::ImageIndex &imageIndex,
-                                        FramebufferAttachmentRenderTarget **rtOut) override;
+    angle::Result getAttachmentRenderTarget(const gl::Context *context,
+                                            GLenum binding,
+                                            const gl::ImageIndex &imageIndex,
+                                            GLsizei samples,
+                                            FramebufferAttachmentRenderTarget **rtOut) override;
 
-    gl::Error initializeContents(const gl::Context *context,
-                                 const gl::ImageIndex &imageIndex) override;
+    angle::Result initializeContents(const gl::Context *context,
+                                     const gl::ImageIndex &imageIndex) override;
+
+    vk::ImageHelper *getImage() const { return mImage; }
+    void releaseOwnershipOfImage(const gl::Context *context);
+
+    GLenum getColorReadFormat(const gl::Context *context) override;
+    GLenum getColorReadType(const gl::Context *context) override;
+
+    angle::Result getRenderbufferImage(const gl::Context *context,
+                                       const gl::PixelPackState &packState,
+                                       gl::Buffer *packBuffer,
+                                       GLenum format,
+                                       GLenum type,
+                                       void *pixels) override;
 
   private:
-    vk::ImageHelper mImage;
-    vk::ImageView mImageView;
+    void releaseAndDeleteImage(ContextVk *contextVk);
+    void releaseImage(ContextVk *contextVk);
+
+    angle::Result setStorageImpl(const gl::Context *context,
+                                 size_t samples,
+                                 GLenum internalformat,
+                                 size_t width,
+                                 size_t height);
+
+    const gl::InternalFormat &getImplementationSizedFormat() const;
+
+    bool mOwnsImage;
+    vk::ImageHelper *mImage;
+    vk::ImageViewHelper mImageViews;
     RenderTargetVk mRenderTarget;
 };
 

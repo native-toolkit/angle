@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -23,7 +23,7 @@ class SurfaceEGL : public SurfaceGL
     SurfaceEGL(const egl::SurfaceState &state, const FunctionsEGL *egl, EGLConfig config);
     ~SurfaceEGL() override;
 
-    egl::Error makeCurrent() override;
+    egl::Error makeCurrent(const gl::Context *context) override;
     egl::Error swap(const gl::Context *context) override;
     egl::Error swapWithDamage(const gl::Context *context, EGLint *rects, EGLint n_rects) override;
     egl::Error postSubBuffer(const gl::Context *context,
@@ -42,6 +42,18 @@ class SurfaceEGL : public SurfaceGL
     EGLint getHeight() const override;
     EGLint isPostSubBufferSupported() const override;
     EGLint getSwapBehavior() const override;
+
+    void setTimestampsEnabled(bool enabled) override;
+    egl::SupportedCompositorTimings getSupportedCompositorTimings() const override;
+    egl::Error getCompositorTiming(EGLint numTimestamps,
+                                   const EGLint *names,
+                                   EGLnsecsANDROID *values) const override;
+    egl::Error getNextFrameId(EGLuint64KHR *frameId) const override;
+    egl::SupportedTimestamps getSupportedTimestamps() const override;
+    egl::Error getFrameTimestamps(EGLuint64KHR frameId,
+                                  EGLint numTimestamps,
+                                  const EGLint *timestamps,
+                                  EGLnsecsANDROID *values) const override;
 
     EGLSurface getSurface() const;
 

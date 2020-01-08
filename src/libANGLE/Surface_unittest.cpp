@@ -1,17 +1,17 @@
 //
-// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "libANGLE/angletypes.h"
+
 #include "libANGLE/AttributeMap.h"
 #include "libANGLE/Config.h"
-#include "libANGLE/ContextState.h"
 #include "libANGLE/State.h"
 #include "libANGLE/Surface.h"
+#include "libANGLE/angletypes.h"
 #include "libANGLE/renderer/FramebufferImpl_mock.h"
 #include "libANGLE/renderer/SurfaceImpl.h"
 #include "tests/angle_unittests_utils.h"
@@ -35,7 +35,7 @@ class MockSurfaceImpl : public rx::SurfaceImpl
     MOCK_METHOD1(swap, egl::Error(const gl::Context *));
     MOCK_METHOD3(swapWithDamage, egl::Error(const gl::Context *, EGLint *, EGLint));
     MOCK_METHOD5(postSubBuffer, egl::Error(const gl::Context *, EGLint, EGLint, EGLint, EGLint));
-    MOCK_METHOD2(querySurfacePointerANGLE, egl::Error(EGLint, void**));
+    MOCK_METHOD2(querySurfacePointerANGLE, egl::Error(EGLint, void **));
     MOCK_METHOD3(bindTexImage, egl::Error(const gl::Context *context, gl::Texture *, EGLint));
     MOCK_METHOD2(releaseTexImage, egl::Error(const gl::Context *context, EGLint));
     MOCK_METHOD3(getSyncValues, egl::Error(EGLuint64KHR *, EGLuint64KHR *, EGLuint64KHR *));
@@ -44,11 +44,12 @@ class MockSurfaceImpl : public rx::SurfaceImpl
     MOCK_CONST_METHOD0(getHeight, EGLint());
     MOCK_CONST_METHOD0(isPostSubBufferSupported, EGLint(void));
     MOCK_CONST_METHOD0(getSwapBehavior, EGLint(void));
-    MOCK_METHOD4(getAttachmentRenderTarget,
-                 gl::Error(const gl::Context *,
-                           GLenum,
-                           const gl::ImageIndex &,
-                           rx::FramebufferAttachmentRenderTarget **));
+    MOCK_METHOD5(getAttachmentRenderTarget,
+                 angle::Result(const gl::Context *,
+                               GLenum,
+                               const gl::ImageIndex &,
+                               GLsizei,
+                               rx::FramebufferAttachmentRenderTarget **));
 
     MOCK_METHOD0(destructor, void());
 
@@ -77,4 +78,4 @@ TEST(SurfaceTest, DestructionDeletesImpl)
     Mock::VerifyAndClear(impl);
 }
 
-} // namespace
+}  // namespace

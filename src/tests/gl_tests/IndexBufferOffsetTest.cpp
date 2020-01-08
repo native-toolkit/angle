@@ -6,8 +6,8 @@
 
 // IndexBufferOffsetTest.cpp: Test glDrawElements with an offset and an index buffer
 
-#include "system_utils.h"
 #include "test_utils/ANGLETest.h"
+#include "util/test_utils.h"
 
 using namespace angle;
 
@@ -24,11 +24,9 @@ class IndexBufferOffsetTest : public ANGLETest
         setConfigAlphaBits(8);
     }
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
-
-        const std::string vertexShaderSource =
+        constexpr char kVS[] =
             R"(precision highp float;
             attribute vec2 position;
 
@@ -37,7 +35,7 @@ class IndexBufferOffsetTest : public ANGLETest
                 gl_Position = vec4(position, 0.0, 1.0);
             })";
 
-        const std::string fragmentShaderSource =
+        constexpr char kFS[] =
             R"(precision highp float;
             uniform vec4 color;
 
@@ -46,7 +44,7 @@ class IndexBufferOffsetTest : public ANGLETest
                 gl_FragColor = color;
             })";
 
-        mProgram = CompileProgram(vertexShaderSource, fragmentShaderSource);
+        mProgram = CompileProgram(kVS, kFS);
         ASSERT_NE(0u, mProgram);
 
         mColorUniformLocation      = glGetUniformLocation(mProgram, "color");
@@ -61,12 +59,11 @@ class IndexBufferOffsetTest : public ANGLETest
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mIndexBuffer);
     }
 
-    void TearDown() override
+    void testTearDown() override
     {
         glDeleteBuffers(1, &mVertexBuffer);
         glDeleteBuffers(1, &mIndexBuffer);
         glDeleteProgram(mProgram);
-        ANGLETest::TearDown();
     }
 
     void runTest(GLenum type, int typeWidth, void *indexData)
@@ -94,7 +91,7 @@ class IndexBufferOffsetTest : public ANGLETest
         for (int i = 0; i < 16; i++)
         {
             glDrawElements(GL_TRIANGLES, 6, type, reinterpret_cast<void *>(indexDataWidth));
-            EXPECT_PIXEL_EQ(64, 64, 255, 0, 0, 255);
+            EXPECT_PIXEL_COLOR_EQ(64, 64, GLColor::red);
         }
 
         glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indexDataWidth, indexDataWidth, nullIndexData);
@@ -102,7 +99,7 @@ class IndexBufferOffsetTest : public ANGLETest
 
         glUniform4f(mColorUniformLocation, 0.0f, 1.0f, 0.0f, 1.0f);
         glDrawElements(GL_TRIANGLES, 6, type, reinterpret_cast<void *>(indexDataWidth * 2));
-        EXPECT_PIXEL_EQ(64, 64, 0, 255, 0, 255);
+        EXPECT_PIXEL_COLOR_EQ(64, 64, GLColor::green);
 
         EXPECT_GL_NO_ERROR();
         swapBuffers();
@@ -118,10 +115,6 @@ class IndexBufferOffsetTest : public ANGLETest
 // Test using an offset for an UInt8 index buffer
 TEST_P(IndexBufferOffsetTest, UInt8Index)
 {
-    // TODO(lucferron): Add support for unsigned byte elements array buffers
-    // http://anglebug.com/2659
-    ANGLE_SKIP_TEST_IF(IsVulkan());
-
     GLubyte indexData[] = {0, 1, 2, 1, 2, 3};
     runTest(GL_UNSIGNED_BYTE, 1, indexData);
 }
@@ -142,7 +135,7 @@ TEST_P(IndexBufferOffsetTest, UInt16Index)
 TEST_P(IndexBufferOffsetTest, UInt32Index)
 {
     ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3 &&
-                       !extensionEnabled("GL_OES_element_index_uint"));
+                       !IsGLExtensionEnabled("GL_OES_element_index_uint"));
 
     GLuint indexData[] = {0, 1, 2, 1, 2, 3};
     runTest(GL_UNSIGNED_INT, 4, indexData);
@@ -216,6 +209,7 @@ ANGLE_INSTANTIATE_TEST(IndexBufferOffsetTest,
                        ES2_D3D9(),
                        ES2_D3D11(),
                        ES3_D3D11(),
+                       ES2_METAL(),
                        ES2_OPENGL(),
                        ES3_OPENGL(),
                        ES2_OPENGLES(),

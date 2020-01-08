@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2018 The ANGLE Project Authors. All rights reserved.
+// Copyright 2018 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -17,13 +17,15 @@ namespace rx
 class ContextWGL : public ContextGL
 {
   public:
-    ContextWGL(const gl::ContextState &state, const std::shared_ptr<RendererWGL> &renderer);
+    ContextWGL(const gl::State &state,
+               gl::ErrorSet *errorSet,
+               const std::shared_ptr<RendererWGL> &renderer);
     ~ContextWGL() override;
 
     HGLRC getContext() const;
 
   private:
-    std::shared_ptr<RendererWGL> mRenderer;
+    std::shared_ptr<RendererWGL> mRendererWGL;
 };
 }  // namespace rx
 

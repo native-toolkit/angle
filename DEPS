@@ -1,115 +1,256 @@
+# This file is used to manage the dependencies of the ANGLE git repo. It is
+# used by gclient to determine what version of each dependency to check out, and
+# where.
+
+# Avoids the need for a custom root variable.
+use_relative_paths = True
+use_relative_hooks = True
+
 vars = {
   'android_git': 'https://android.googlesource.com',
   'chromium_git': 'https://chromium.googlesource.com',
-
-  # This variable is set on the Chrome infra for compatiblity with gclient.
-  'angle_root': '.',
+  'chrome_internal_git': 'https://chrome-internal.googlesource.com',
+  'swiftshader_git': 'https://swiftshader.googlesource.com',
 
   # This variable is overrided in Chromium's DEPS file.
   'build_with_chromium': False,
 
-  # Current revision of dEQP.
-  'deqp_revision': '4c0f2a4fba813e1046115c43c887eccb749b7bb3',
+  # Only check out public sources by default. This can be overridden with custom_vars.
+  'checkout_angle_internal': False,
+
+  # Version of Chromium our Chromium-based DEPS are mirrored from.
+  'chromium_revision': 'e1633af636fa3bc0bf93ccaf5ccc1c9691439703',
+
+  # Current revision of VK-GL-CTS (a.k.a dEQP).
+  'vk_gl_cts_revision': 'd99a765d38d35deeb3f27cf30d9d6fe4f183510e',
 
   # Current revision of glslang, the Khronos SPIRV compiler.
-  'glslang_revision': '1ea8f595f9a9ebd938fe9e5f15ae469c7d6ebabc',
+  'glslang_revision': '1d258ac34698323d6f8e10ae4d3a8b182995831b',
+
+  # Current revision of googletest.
+  # Note: this dep cannot be auto-rolled b/c of nesting.
+  'googletest_revision': 'f2fb48c3b3d79a75a88a99fba6576b25d42ec528',
+
+  # Current revision of jsoncpp.
+  # Note: this dep cannot be auto-rolled b/c of nesting.
+  'jsoncpp_revision': '645250b6690785be60ab6780ce4b58698d884d11',
+
+  # Current revision of patched-yasm.
+  # Note: this dep cannot be auto-rolled b/c of nesting.
+  'patched_yasm_revision': '720b70524a4424b15fc57e82263568c8ba0496ad',
+
+  # Current revision of spirv-cross, the Khronos SPIRV cross compiler.
+  'spirv_cross_revision': 'fd5aa3ad51ece55a1b51fe6bfb271db6844ae291',
 
   # Current revision fo the SPIRV-Headers Vulkan support library.
-  'spirv_headers_revision': 'ff684ffc6a35d2a58f0f63108877d0064ea33feb',
+  'spirv_headers_revision': 'af64a9e826bf5bb5fcd2434dd71be1e41e922563',
 
   # Current revision of SPIRV-Tools for Vulkan.
-  'spirv_tools_revision': '48326d443e434f55eb50a7cfc9acdc968daad5e3',
+  'spirv_tools_revision': 'e70b009b0f1e47278d89ed7c9f418010d563eb5a',
 
   # Current revision of Khronos Vulkan-Headers.
-  'vulkan_headers_revision': 'ec4eff88f79b74c4865f41bef0d6af9a46d53896',
+  'vulkan_headers_revision': 'f63dd5c9d874310c8403f3aef9302b761efedd18',
 
   # Current revision of Khronos Vulkan-Loader.
-  'vulkan_loader_revision': 'da58202e9569eff53560b4c3a007de2297be40d2',
+  'vulkan_loader_revision': '2d6f74c6d4319e94cf1fa33954c619ab4428f2b8',
 
   # Current revision of Khronos Vulkan-Tools.
-  'vulkan_tools_revision': 'b7c389c9d3efe5cea722eb7395fb70529dd27566',
+  'vulkan_tools_revision': '55333361f9a10b21b4e2160066c0399a26e3630f',
 
   # Current revision of Khronos Vulkan-ValidationLayers.
-  'vulkan_validation_revision': '9e92c5c0e5b0b2264d72d8bafe15f049cba1c67d',
+  'vulkan_validation_revision': 'b416ed86e4b2a1a0295cef6630cfa00a31f084b1',
+
+  # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling catapult
+  # and whatever else without interference from each other.
+  'catapult_revision': '1b3fb455bf1849f1e6187e1eaeaef32b9f30d3c5',
 }
 
 deps = {
 
-  '{angle_root}/build': {
-    'url': '{chromium_git}/chromium/src/build.git@b944b99e72923c5a6699235ed858e725db21f81f',
+  'build': {
+    'url': '{chromium_git}/chromium/src/build.git@dfe5662014cf45982441c8a767092934dfecfa9e',
     'condition': 'not build_with_chromium',
   },
 
-  '{angle_root}/buildtools': {
-    'url': '{chromium_git}/chromium/buildtools.git@94288c26d2ffe3aec9848c147839afee597acefd',
+  'buildtools': {
+    'url': '{chromium_git}/chromium/src/buildtools.git@6b3e658d6fe8cd9c2588796d296f07312b776054',
     'condition': 'not build_with_chromium',
   },
 
-  '{angle_root}/testing': {
-    'url': '{chromium_git}/chromium/src/testing@4d706fd80be9e8989aec5235540e7b46d0672826',
+  # Closed-source ANGLE capture files and tests
+  'src/tests/internal_capture_tests': {
+    'url': '{chrome_internal_git}/angle/angle-captures.git@e2fa6fa80de07f784da7214e933c8565ebfc34da',
+    'condition': 'checkout_angle_internal',
+  },
+
+  'testing': {
+    'url': '{chromium_git}/chromium/src/testing@c1b508625d47f26cfc04eab47747a792a5ee765b',
     'condition': 'not build_with_chromium',
   },
 
-  # Cherry is a dEQP management GUI written in Go. We use it for viewing test results.
-  '{angle_root}/third_party/cherry': {
+  # Cherry is a dEQP/VK-GL-CTS management GUI written in Go. We use it for viewing test results.
+  'third_party/cherry': {
     'url': '{android_git}/platform/external/cherry@4f8fb08d33ca5ff05a1c638f04c85bbb8d8b52cc',
     'condition': 'not build_with_chromium',
   },
 
-  '{angle_root}/third_party/deqp/src': {
-    'url': '{android_git}/platform/external/deqp@{deqp_revision}',
+  'third_party/VK-GL-CTS/src': {
+    'url': '{chromium_git}/external/github.com/KhronosGroup/VK-GL-CTS@{vk_gl_cts_revision}',
   },
 
-  '{angle_root}/third_party/glslang/src': {
-    'url': '{android_git}/platform/external/shaderc/glslang@{glslang_revision}',
+  'third_party/fuchsia-sdk': {
+    'url': '{chromium_git}/chromium/src/third_party/fuchsia-sdk.git@1785f0ac8e1fe81cb25e260acbe7de8f62fa3e44',
+    'condition': 'checkout_fuchsia and not build_with_chromium',
   },
 
-  '{angle_root}/third_party/googletest/src': {
-    'url': '{chromium_git}/external/github.com/google/googletest.git@145d05750b15324899473340c8dd5af50d125d33',
+  # Closed-source OpenGL ES 1.1 Conformance tests.
+  'third_party/gles1_conform': {
+    'url': '{chrome_internal_git}/angle/es-cts.git@dc9f502f709c9cd88d7f8d3974f1c77aa246958e',
+    'condition': 'checkout_angle_internal',
+  },
+
+  # glmark2 is a GPL3-licensed OpenGL ES 2.0 benchmark. We use it for testing.
+  'third_party/glmark2/src': {
+    'url': '{chromium_git}/external/github.com/glmark2/glmark2@9e01aef1a786b28aca73135a5b00f85c357e8f5e',
+  },
+
+  'third_party/glslang/src': {
+    'url': '{chromium_git}/external/github.com/KhronosGroup/glslang@{glslang_revision}',
     'condition': 'not build_with_chromium',
   },
 
-  '{angle_root}/third_party/libpng/src': {
+  'third_party/googletest': {
+    'url': '{chromium_git}/chromium/src/third_party/googletest@f8eeeb06c0e306257817ae2b719a65cae648090e',
+    'condition': 'not build_with_chromium',
+  },
+
+  # libjpeg_turbo is used by glmark2.
+  'third_party/libjpeg_turbo': {
+    'url': '{chromium_git}/chromium/deps/libjpeg_turbo.git@bc13578529255ec75005ffc98aae151666122892',
+    'condition': 'not build_with_chromium',
+  },
+
+  'third_party/libpng/src': {
     'url': '{android_git}/platform/external/libpng@094e181e79a3d6c23fd005679025058b7df1ad6c',
     'condition': 'not build_with_chromium',
   },
 
-  '{angle_root}/third_party/spirv-headers/src': {
-    'url': '{android_git}/platform/external/shaderc/spirv-headers@{spirv_headers_revision}',
+  'third_party/jsoncpp': {
+    'url': '{chromium_git}/chromium/src/third_party/jsoncpp@1cfec065ed4cd9a01fa8e351baa3e714a5868522',
+    'condition': 'not build_with_chromium',
+   },
+
+  'third_party/Python-Markdown': {
+    'url': '{chromium_git}/chromium/src/third_party/Python-Markdown@36657c103ce5964733bbbb29377085e9cc1a9472',
+    'condition': 'not build_with_chromium',
   },
 
-  '{angle_root}/third_party/spirv-tools/src': {
-    'url': '{android_git}/platform/external/shaderc/spirv-tools@{spirv_tools_revision}',
+  'third_party/qemu-linux-x64': {
+      'packages': [
+          {
+              'package': 'fuchsia/qemu/linux-amd64',
+              'version': '9cc486c5b18a0be515c39a280ca9a309c54cf994'
+          },
+      ],
+      'condition': 'not build_with_chromium and (host_os == "linux" and checkout_fuchsia)',
+      'dep_type': 'cipd',
   },
 
-  '{angle_root}/third_party/vulkan-headers/src': {
+  'third_party/qemu-mac-x64': {
+      'packages': [
+          {
+              'package': 'fuchsia/qemu/mac-amd64',
+              'version': '2d3358ae9a569b2d4a474f498b32b202a152134f'
+          },
+      ],
+      'condition': 'not build_with_chromium and (host_os == "mac" and checkout_fuchsia)',
+      'dep_type': 'cipd',
+  },
+
+  'third_party/rapidjson/src': {
+    'url': '{chromium_git}/external/github.com/Tencent/rapidjson@7484e06c589873e1ed80382d262087e4fa80fb63',
+  },
+
+  'third_party/spirv-cross/src': {
+    'url': '{chromium_git}/external/github.com/KhronosGroup/SPIRV-Cross@{spirv_cross_revision}',
+    'condition': 'not build_with_chromium',
+  },
+
+  'third_party/spirv-headers/src': {
+    'url': '{chromium_git}/external/github.com/KhronosGroup/SPIRV-Headers@{spirv_headers_revision}',
+    'condition': 'not build_with_chromium',
+  },
+
+  'third_party/spirv-tools/src': {
+    'url': '{chromium_git}/external/github.com/KhronosGroup/SPIRV-Tools@{spirv_tools_revision}',
+    'condition': 'not build_with_chromium',
+  },
+
+  'third_party/SwiftShader': {
+    'url': '{swiftshader_git}/SwiftShader@068dd89cab31091e2290c99bd8b6c721e1108bda',
+    'condition': 'not build_with_chromium',
+  },
+
+  'third_party/vulkan-headers/src': {
     'url': '{chromium_git}/external/github.com/KhronosGroup/Vulkan-Headers@{vulkan_headers_revision}',
   },
 
-  '{angle_root}/third_party/vulkan-loader/src': {
+  'third_party/vulkan-loader/src': {
     'url': '{chromium_git}/external/github.com/KhronosGroup/Vulkan-Loader@{vulkan_loader_revision}',
   },
 
-  '{angle_root}/third_party/vulkan-tools/src': {
+  'third_party/vulkan-tools/src': {
     'url': '{chromium_git}/external/github.com/KhronosGroup/Vulkan-Tools@{vulkan_tools_revision}',
   },
 
-  '{angle_root}/third_party/vulkan-validation-layers/src': {
+  'third_party/vulkan-validation-layers/src': {
     'url': '{chromium_git}/external/github.com/KhronosGroup/Vulkan-ValidationLayers@{vulkan_validation_revision}',
   },
 
-  '{angle_root}/third_party/zlib': {
-    'url': '{chromium_git}/chromium/src/third_party/zlib@da0819d6c816a61be6fcb2fcf9b74246f0f8b808',
+  'third_party/yasm': {
+    'url': '{chromium_git}/chromium/src/third_party/yasm@02a8d2167f476660411ea7e1ee6fbd21dda44e96',
     'condition': 'not build_with_chromium',
   },
 
-  '{angle_root}/tools/clang': {
-    'url': '{chromium_git}/chromium/src/tools/clang.git@c893c7eec4706f8c7fc244ee254b1dadd8f8d158',
+  'third_party/zlib': {
+    'url': '{chromium_git}/chromium/src/third_party/zlib@f262c1b3c4196a2fee98c113142faff525b8d884',
     'condition': 'not build_with_chromium',
   },
 
-  '{angle_root}/tools/gyp': {
-    'url': '{chromium_git}/external/gyp@4d467626b0b9f59a85fb81ca4d7ea9eca99b9d8f',
+  'tools/clang': {
+    'url': '{chromium_git}/chromium/src/tools/clang.git@a9190d6699c6e6517025c9f69cd74bd3d96a6f0f',
+    'condition': 'not build_with_chromium',
+  },
+
+  'tools/clang/dsymutil': {
+    'packages': [
+      {
+        'package': 'chromium/llvm-build-tools/dsymutil',
+        'version': 'M56jPzDv1620Rnm__jTMYS62Zi8rxHVq7yw0qeBFEgkC',
+      }
+    ],
+    'condition': 'checkout_mac and not build_with_chromium',
+    'dep_type': 'cipd',
+  },
+
+  'tools/md_browser': {
+    'url': '{chromium_git}/chromium/src/tools/md_browser@0bfd826f8566a99923e64a782908faca72bc457c',
+    'condition': 'not build_with_chromium',
+  },
+
+  'tools/memory': {
+    'url': '{chromium_git}/chromium/src/tools/memory@89552acb6e60f528fe3c98eac7b445d4c34183ee',
+    'condition': 'not build_with_chromium',
+  },
+
+  'third_party/catapult': {
+    'url': '{chromium_git}/catapult.git@{catapult_revision}',
+    'condition': 'not build_with_chromium',
+  },
+
+  'third_party/android_ndk': {
+    'url': '{chromium_git}/android_ndk.git@27c0a8d090c666a50e40fceb4ee5b40b1a2d3f87',
     'condition': 'not build_with_chromium',
   },
 }
@@ -125,7 +266,7 @@ hooks = [
                 '--platform=win32',
                 '--no_auth',
                 '--bucket', 'chromium-clang-format',
-                '-s', '{angle_root}/buildtools/win/clang-format.exe.sha1',
+                '-s', 'buildtools/win/clang-format.exe.sha1',
     ],
   },
   {
@@ -137,7 +278,7 @@ hooks = [
                 '--platform=darwin',
                 '--no_auth',
                 '--bucket', 'chromium-clang-format',
-                '-s', '{angle_root}/buildtools/mac/clang-format.sha1',
+                '-s', 'buildtools/mac/clang-format.sha1',
     ],
   },
   {
@@ -149,58 +290,21 @@ hooks = [
                 '--platform=linux*',
                 '--no_auth',
                 '--bucket', 'chromium-clang-format',
-                '-s', '{angle_root}/buildtools/linux64/clang-format.sha1',
-    ],
-  },
-  # Pull GN binaries using checked-in hashes.
-  {
-    'name': 'gn_win',
-    'pattern': '.',
-    'condition': 'host_os == "win" and not build_with_chromium',
-    'action': [ 'download_from_google_storage',
-                '--no_resume',
-                '--platform=win32',
-                '--no_auth',
-                '--bucket', 'chromium-gn',
-                '-s', '{angle_root}/buildtools/win/gn.exe.sha1',
-    ],
-  },
-  {
-    'name': 'gn_mac',
-    'pattern': '.',
-    'condition': 'host_os == "mac" and not build_with_chromium',
-    'action': [ 'download_from_google_storage',
-                '--no_resume',
-                '--platform=darwin',
-                '--no_auth',
-                '--bucket', 'chromium-gn',
-                '-s', '{angle_root}/buildtools/mac/gn.sha1',
-    ],
-  },
-  {
-    'name': 'gn_linux64',
-    'pattern': '.',
-    'condition': 'host_os == "linux" and not build_with_chromium',
-    'action': [ 'download_from_google_storage',
-                '--no_resume',
-                '--platform=linux*',
-                '--no_auth',
-                '--bucket', 'chromium-gn',
-                '-s', '{angle_root}/buildtools/linux64/gn.sha1',
+                '-s', 'buildtools/linux64/clang-format.sha1',
     ],
   },
   {
     'name': 'sysroot_x86',
     'pattern': '.',
     'condition': 'checkout_linux and ((checkout_x86 or checkout_x64) and not build_with_chromium)',
-    'action': ['python', '{angle_root}/build/linux/sysroot_scripts/install-sysroot.py',
+    'action': ['python', 'build/linux/sysroot_scripts/install-sysroot.py',
                '--arch=x86'],
   },
   {
     'name': 'sysroot_x64',
     'pattern': '.',
     'condition': 'checkout_linux and (checkout_x64 and not build_with_chromium)',
-    'action': ['python', '{angle_root}/build/linux/sysroot_scripts/install-sysroot.py',
+    'action': ['python', 'build/linux/sysroot_scripts/install-sysroot.py',
                '--arch=x64'],
   },
   {
@@ -208,15 +312,31 @@ hooks = [
     'name': 'win_toolchain',
     'pattern': '.',
     'condition': 'checkout_win and not build_with_chromium',
-    'action': ['python', '{angle_root}/build/vs_toolchain.py', 'update', '--force'],
+    'action': ['python', 'build/vs_toolchain.py', 'update', '--force'],
+  },
+  {
+    # Update the Mac toolchain if necessary.
+    'name': 'mac_toolchain',
+    'pattern': '.',
+    'condition': 'checkout_mac and not build_with_chromium',
+    'action': ['python', 'build/mac_toolchain.py'],
   },
 
   {
     # Note: On Win, this should run after win_toolchain, as it may use it.
     'name': 'clang',
     'pattern': '.',
-    'action': ['python', '{angle_root}/tools/clang/scripts/update.py'],
+    'action': ['python', 'tools/clang/scripts/update.py'],
     'condition': 'not build_with_chromium',
+  },
+
+  {
+    # Update LASTCHANGE.
+    'name': 'lastchange',
+    'pattern': '.',
+    'condition': 'not build_with_chromium',
+    'action': ['python', 'build/util/lastchange.py',
+               '-o', 'build/util/LASTCHANGE'],
   },
 
   # Pull rc binaries using checked-in hashes.
@@ -228,19 +348,81 @@ hooks = [
                 '--no_resume',
                 '--no_auth',
                 '--bucket', 'chromium-browser-clang/rc',
-                '-s', '{angle_root}/build/toolchain/win/rc/win/rc.exe.sha1',
+                '-s', 'build/toolchain/win/rc/win/rc.exe.sha1',
     ],
   },
 
   {
-    # A change to a .gyp, .gypi, or to GYP itself should run the generator.
+    'name': 'fuchsia_sdk',
     'pattern': '.',
-    'action': ['python', '{angle_root}/gyp/gyp_angle'],
-    'condition': 'not build_with_chromium',
+    'condition': 'checkout_fuchsia and not build_with_chromium',
+    'action': [
+      'python',
+      'build/fuchsia/update_sdk.py',
+    ],
+  },
+
+  # Download glslang validator binary for Linux.
+  {
+    'name': 'linux_glslang_validator',
+    'pattern': '.',
+    'condition': 'checkout_linux and not build_with_chromium',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=linux*',
+                '--no_auth',
+                '--bucket', 'angle-glslang-validator',
+                '-s', 'tools/glslang/glslang_validator.sha1',
+    ],
+  },
+
+  # Download glslang validator binary for Windows.
+  {
+    'name': 'win_glslang_validator',
+    'pattern': '.',
+    'condition': 'checkout_win and not build_with_chromium',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=win32*',
+                '--no_auth',
+                '--bucket', 'angle-glslang-validator',
+                '-s', 'tools/glslang/glslang_validator.exe.sha1',
+    ],
+  },
+
+  # Download flex/bison binaries for Linux.
+  {
+    'name': 'linux_flex_bison',
+    'pattern': '.',
+    'condition': 'checkout_linux and not build_with_chromium',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=linux*',
+                '--no_auth',
+                '--bucket', 'angle-flex-bison',
+                '-d', 'tools/flex-bison/linux/',
+    ],
+  },
+
+  # Download flex/bison binaries for Windows.
+  {
+    'name': 'win_flex_bison',
+    'pattern': '.',
+    'condition': 'checkout_win and not build_with_chromium',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=win32*',
+                '--no_auth',
+                '--bucket', 'angle-flex-bison',
+                '-d', 'tools/flex-bison/windows/',
+    ],
   },
 ]
 
 recursedeps = [
   # buildtools provides clang_format.
-  '{angle_root}/buildtools',
+  'buildtools',
+  'third_party/googletest',
+  'third_party/jsoncpp',
+  'third_party/yasm',
 ]

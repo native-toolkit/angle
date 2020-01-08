@@ -9,7 +9,7 @@
 #include "test_utils/ANGLETest.h"
 #include "test_utils/gl_raii.h"
 
-#include "random_utils.h"
+#include "util/random_utils.h"
 
 #include "common/vector_utils.h"
 
@@ -66,4 +66,4 @@ TEST_P(CurrentNormalTest, Set)
     EXPECT_NEAR(1.0f / 3.0f, actualNormal[2], epsilon);
 }
 
-ANGLE_INSTANTIATE_TEST(CurrentNormalTest, ES1_D3D11(), ES1_OPENGL(), ES1_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES1(CurrentNormalTest);

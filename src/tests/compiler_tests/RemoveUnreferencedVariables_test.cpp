@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 The ANGLE Project Authors. All rights reserved.
+// Copyright 2017 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -18,8 +18,7 @@ class RemoveUnreferencedVariablesTest : public MatchOutputCodeTest
 {
   public:
     RemoveUnreferencedVariablesTest() : MatchOutputCodeTest(GL_FRAGMENT_SHADER, 0, SH_ESSL_OUTPUT)
-    {
-    }
+    {}
 };
 
 // Test that a simple unreferenced declaration is pruned.

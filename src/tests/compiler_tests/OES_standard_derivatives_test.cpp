@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2018 The ANGLE Project Authors. All rights reserved.
+// Copyright 2018 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -80,7 +80,7 @@ TEST_P(OESStandardDerivativesTest, CompileSucceedsWithExtensionAndPragma)
 
 // The SL #version 100 shaders that are correct work similarly
 // in both GL2 and GL3, with and without the version string.
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     CorrectESSL100Shaders,
     OESStandardDerivativesTest,
     Combine(Values(SH_GLES2_SPEC),

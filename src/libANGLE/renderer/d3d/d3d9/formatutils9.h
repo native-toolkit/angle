@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2013 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -73,8 +73,7 @@ struct VertexFormat
     D3DDECLTYPE nativeFormat;
     GLenum componentType;
 };
-const VertexFormat &GetVertexFormatInfo(DWORD supportedDeclTypes,
-                                        gl::VertexFormatType vertexFormatType);
+const VertexFormat &GetVertexFormatInfo(DWORD supportedDeclTypes, angle::FormatID vertexFormatID);
 
 struct TextureFormat
 {
@@ -88,7 +87,7 @@ struct TextureFormat
     LoadImageFunction loadFunction;
 };
 const TextureFormat &GetTextureFormatInfo(GLenum internalFormat);
-}
-}
+}  // namespace d3d9
+}  // namespace rx
 
 #endif  // LIBANGLE_RENDERER_D3D_D3D9_FORMATUTILS9_H_

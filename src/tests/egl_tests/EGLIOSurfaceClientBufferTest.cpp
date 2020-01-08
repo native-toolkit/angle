@@ -10,6 +10,7 @@
 
 #include "common/mathutil.h"
 #include "test_utils/gl_raii.h"
+#include "util/EGLWindow.h"
 
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOSurface/IOSurface.h>
@@ -94,15 +95,11 @@ class IOSurfaceClientBufferTest : public ANGLETest
   protected:
     IOSurfaceClientBufferTest() : mConfig(0), mDisplay(nullptr) {}
 
-    void SetUp() override
+    void testSetUp() override
     {
-        ANGLETest::SetUp();
-
         mConfig  = getEGLWindow()->getConfig();
         mDisplay = getEGLWindow()->getDisplay();
     }
-
-    void TearDown() override { ANGLETest::TearDown(); }
 
     void createIOSurfacePbuffer(const ScopedIOSurfaceRef &ioSurface,
                                 EGLint width,
@@ -211,14 +208,14 @@ class IOSurfaceClientBufferTest : public ANGLETest
         GLTexture texture;
         bindIOSurfaceToTexture(ioSurface, 1, 1, 0, internalFormat, type, &pbuffer, &texture);
 
-        const std::string vs =
+        constexpr char kVS[] =
             "attribute vec4 position;\n"
             "void main()\n"
             "{\n"
             "    gl_Position = vec4(position.xy, 0.0, 1.0);\n"
             "}\n";
 
-        const std::string fs =
+        constexpr char kFS[] =
             "#extension GL_ARB_texture_rectangle : require\n"
             "precision mediump float;\n"
             "uniform sampler2DRect tex;\n"
@@ -227,7 +224,7 @@ class IOSurfaceClientBufferTest : public ANGLETest
             "    gl_FragColor = texture2DRect(tex, vec2(0, 0));\n"
             "}\n";
 
-        ANGLE_GL_PROGRAM(program, vs, fs);
+        ANGLE_GL_PROGRAM(program, kVS, kFS);
         glUseProgram(program);
 
         GLint location = glGetUniformLocation(program, "tex");
@@ -242,6 +239,74 @@ class IOSurfaceClientBufferTest : public ANGLETest
                               (mask & A) ? 4 : 255);
         EXPECT_PIXEL_COLOR_EQ(0, 0, expectedColor);
         ASSERT_GL_NO_ERROR();
+    }
+
+    void doBlitTest(bool ioSurfaceIsSource, int width, int height)
+    {
+        // Create IOSurface and bind it to a texture.
+        ScopedIOSurfaceRef ioSurface = CreateSinglePlaneIOSurface(width, height, 'BGRA', 4);
+        EGLSurface pbuffer;
+        GLTexture texture;
+        bindIOSurfaceToTexture(ioSurface, width, height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, &pbuffer,
+                               &texture);
+
+        GLFramebuffer iosurfaceFbo;
+        glBindFramebuffer(GL_FRAMEBUFFER, iosurfaceFbo);
+        EXPECT_GL_NO_ERROR();
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE_ANGLE,
+                               texture, 0);
+        EXPECT_GL_NO_ERROR();
+        EXPECT_GLENUM_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER), GL_FRAMEBUFFER_COMPLETE);
+        EXPECT_GL_NO_ERROR();
+
+        // Create another framebuffer with a regular renderbuffer.
+        GLFramebuffer fbo;
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        EXPECT_GL_NO_ERROR();
+        GLRenderbuffer rbo;
+        glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+        EXPECT_GL_NO_ERROR();
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, width, height);
+        EXPECT_GL_NO_ERROR();
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo);
+        EXPECT_GL_NO_ERROR();
+        EXPECT_GLENUM_EQ(glCheckFramebufferStatus(GL_FRAMEBUFFER), GL_FRAMEBUFFER_COMPLETE);
+        EXPECT_GL_NO_ERROR();
+
+        glBindRenderbuffer(GL_RENDERBUFFER, 0);
+        EXPECT_GL_NO_ERROR();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        EXPECT_GL_NO_ERROR();
+
+        // Choose which is going to be the source and destination.
+        GLFramebuffer &src = ioSurfaceIsSource ? iosurfaceFbo : fbo;
+        GLFramebuffer &dst = ioSurfaceIsSource ? fbo : iosurfaceFbo;
+
+        // Clear source to known color.
+        glBindFramebuffer(GL_FRAMEBUFFER, src);
+        glClearColor(1.0f / 255.0f, 2.0f / 255.0f, 3.0f / 255.0f, 4.0f / 255.0f);
+        EXPECT_GL_NO_ERROR();
+        glClear(GL_COLOR_BUFFER_BIT);
+        EXPECT_GL_NO_ERROR();
+
+        // Blit to destination.
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER_ANGLE, dst);
+        glBlitFramebufferANGLE(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT,
+                               GL_NEAREST);
+
+        // Read back from destination.
+        glBindFramebuffer(GL_FRAMEBUFFER, dst);
+        GLColor expectedColor(1, 2, 3, 4);
+        EXPECT_PIXEL_COLOR_EQ(0, 0, expectedColor);
+
+        // Unbind pbuffer and check content.
+        EGLBoolean result = eglReleaseTexImage(mDisplay, pbuffer, EGL_BACK_BUFFER);
+        EXPECT_EGL_TRUE(result);
+        EXPECT_EGL_SUCCESS();
+
+        result = eglDestroySurface(mDisplay, pbuffer);
+        EXPECT_EGL_TRUE(result);
+        EXPECT_EGL_SUCCESS();
     }
 
     EGLConfig mConfig;
@@ -264,6 +329,24 @@ TEST_P(IOSurfaceClientBufferTest, ReadFromBGRA8888IOSurface)
 
     GLColor color(3, 2, 1, 4);
     doSampleTest(ioSurface, GL_BGRA_EXT, GL_UNSIGNED_BYTE, &color, sizeof(color), R | G | B | A);
+}
+
+// Test using BGRX8888 IOSurfaces for rendering
+TEST_P(IOSurfaceClientBufferTest, RenderToBGRX8888IOSurface)
+{
+    ScopedIOSurfaceRef ioSurface = CreateSinglePlaneIOSurface(1, 1, 'BGRA', 4);
+
+    GLColor color(3, 2, 1, 255);
+    doClearTest(ioSurface, GL_RGB, GL_UNSIGNED_BYTE, &color, sizeof(color));
+}
+
+// Test reading from BGRX8888 IOSurfaces
+TEST_P(IOSurfaceClientBufferTest, ReadFromBGRX8888IOSurface)
+{
+    ScopedIOSurfaceRef ioSurface = CreateSinglePlaneIOSurface(1, 1, 'BGRA', 4);
+
+    GLColor color(3, 2, 1, 4);
+    doSampleTest(ioSurface, GL_RGB, GL_UNSIGNED_BYTE, &color, sizeof(color), R | G | B);
 }
 
 // Test using RG88 IOSurfaces for rendering
@@ -305,6 +388,9 @@ TEST_P(IOSurfaceClientBufferTest, ReadFromR8IOSurface)
 // Test using R16 IOSurfaces for rendering
 TEST_P(IOSurfaceClientBufferTest, RenderToR16IOSurface)
 {
+    // This test only works on ES3.
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
+
     // HACK(cwallez@chromium.org) 'L016' doesn't seem to be an official pixel format but it works
     // sooooooo let's test using it
     ScopedIOSurfaceRef ioSurface = CreateSinglePlaneIOSurface(1, 1, 'L016', 2);
@@ -316,6 +402,18 @@ TEST_P(IOSurfaceClientBufferTest, RenderToR16IOSurface)
 // only for floating textures?
 
 // TODO(cwallez@chromium.org): Test using RGBA half float IOSurfaces ('RGhA')
+
+// Test blitting from IOSurface
+TEST_P(IOSurfaceClientBufferTest, BlitFromIOSurface)
+{
+    doBlitTest(true, 2, 2);
+}
+
+// Test blitting to IOSurface
+TEST_P(IOSurfaceClientBufferTest, BlitToIOSurface)
+{
+    doBlitTest(false, 2, 2);
+}
 
 // Test the validation errors for missing attributes for eglCreatePbufferFromClientBuffer with
 // IOSurface
@@ -707,8 +805,8 @@ TEST_P(IOSurfaceClientBufferTest, NegativeValidationBadAttributes)
     }
 }
 
-// Test IOSurface pbuffers cannot be made current
-TEST_P(IOSurfaceClientBufferTest, MakeCurrentDisallowed)
+// Test IOSurface pbuffers can be made current
+TEST_P(IOSurfaceClientBufferTest, MakeCurrent)
 {
     ScopedIOSurfaceRef ioSurface = CreateSinglePlaneIOSurface(10, 10, 'BGRA', 4);
 
@@ -717,11 +815,16 @@ TEST_P(IOSurfaceClientBufferTest, MakeCurrentDisallowed)
 
     EGLContext context = getEGLWindow()->getContext();
     EGLBoolean result  = eglMakeCurrent(mDisplay, pbuffer, pbuffer, context);
-    EXPECT_EGL_FALSE(result);
-    EXPECT_EGL_ERROR(EGL_BAD_SURFACE);
+    EXPECT_EGL_TRUE(result);
+    EXPECT_EGL_SUCCESS();
+    // The test harness expects the EGL state to be restored before the test exits.
+    result = eglMakeCurrent(mDisplay, getEGLWindow()->getSurface(), getEGLWindow()->getSurface(),
+                            context);
+    EXPECT_EGL_TRUE(result);
+    EXPECT_EGL_SUCCESS();
 }
 
 // TODO(cwallez@chromium.org): Test setting width and height to less than the IOSurface's work as
 // expected.
 
-ANGLE_INSTANTIATE_TEST(IOSurfaceClientBufferTest, ES3_OPENGL());
+ANGLE_INSTANTIATE_TEST(IOSurfaceClientBufferTest, ES2_OPENGL(), ES3_OPENGL());

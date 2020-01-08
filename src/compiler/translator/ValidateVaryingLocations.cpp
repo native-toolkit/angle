@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2002-2017 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -53,9 +53,13 @@ int GetLocationCount(const TIntermSymbol *varying, bool ignoreVaryingArraySize)
         ASSERT(!varyingType.isArrayOfArrays());
         return varyingType.getSecondarySize();
     }
+    else if (varyingType.isMatrix())
+    {
+        return varyingType.getNominalSize() * static_cast<int>(varyingType.getArraySizeProduct());
+    }
     else
     {
-        return varyingType.getSecondarySize() * static_cast<int>(varyingType.getArraySizeProduct());
+        return static_cast<int>(varyingType.getArraySizeProduct());
     }
 }
 
@@ -83,7 +87,7 @@ void ValidateShaderInterface(TDiagnostics *diagnostics,
             const int offsetLocation = location + elementIndex;
             if (locationMap.find(offsetLocation) != locationMap.end())
             {
-                std::stringstream strstr;
+                std::stringstream strstr = sh::InitializeStream<std::stringstream>();
                 strstr << "'" << varying->getName()
                        << "' conflicting location with previously defined '"
                        << locationMap[offsetLocation]->getName() << "'";
@@ -114,8 +118,7 @@ class ValidateVaryingLocationsTraverser : public TIntermTraverser
 
 ValidateVaryingLocationsTraverser::ValidateVaryingLocationsTraverser(GLenum shaderType)
     : TIntermTraverser(true, false, false), mShaderType(shaderType)
-{
-}
+{}
 
 bool ValidateVaryingLocationsTraverser::visitDeclaration(Visit visit, TIntermDeclaration *node)
 {

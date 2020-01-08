@@ -9,7 +9,7 @@
 #include "test_utils/ANGLETest.h"
 #include "test_utils/gl_raii.h"
 
-#include "random_utils.h"
+#include "util/random_utils.h"
 
 #include <stdint.h>
 
@@ -45,21 +45,27 @@ TEST_P(MaterialsTest, InitialState)
     float actualShininess;
 
     std::vector<GLenum> pnames = {
-        GL_AMBIENT, GL_DIFFUSE, GL_SPECULAR, GL_EMISSION,
+        GL_AMBIENT,
+        GL_DIFFUSE,
+        GL_SPECULAR,
+        GL_EMISSION,
     };
 
     std::vector<GLColor32F> colors = {
-        kAmbientInitial, kDiffuseInitial, kSpecularInitial, kEmissiveInitial,
+        kAmbientInitial,
+        kDiffuseInitial,
+        kSpecularInitial,
+        kEmissiveInitial,
     };
 
     for (size_t i = 0; i < pnames.size(); i++)
     {
-        glGetMaterialfv(GL_FRONT_AND_BACK, pnames[i], &actualColor.R);
+        glGetMaterialfv(GL_FRONT, pnames[i], &actualColor.R);
         EXPECT_GL_NO_ERROR();
         EXPECT_EQ(colors[i], actualColor);
     }
 
-    glGetMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, &actualShininess);
+    glGetMaterialfv(GL_FRONT, GL_SHININESS, &actualShininess);
     EXPECT_GL_NO_ERROR();
     EXPECT_EQ(kShininessInitial, actualShininess);
 }
@@ -67,13 +73,16 @@ TEST_P(MaterialsTest, InitialState)
 // Check for invalid parameter names.
 TEST_P(MaterialsTest, InvalidParameter)
 {
-    glGetMaterialfv(GL_FRONT_AND_BACK, 0, nullptr);
+    glGetMaterialfv(GL_FRONT, 0, nullptr);
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
 
-    glGetMaterialfv(GL_FRONT, GL_AMBIENT, nullptr);
+    glGetMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, nullptr);
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
 
-    glGetMaterialfv(GL_BACK, GL_AMBIENT, nullptr);
+    glMaterialf(GL_FRONT_AND_BACK, GL_AMBIENT, 0.0f);
+    EXPECT_GL_ERROR(GL_INVALID_ENUM);
+
+    glMaterialfv(GL_FRONT, GL_AMBIENT, nullptr);
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
 }
 
@@ -87,11 +96,17 @@ TEST_P(MaterialsTest, SetParameters)
     const float kShininessTestValue = 1.0f;
 
     std::vector<GLenum> pnames = {
-        GL_AMBIENT, GL_DIFFUSE, GL_SPECULAR, GL_EMISSION,
+        GL_AMBIENT,
+        GL_DIFFUSE,
+        GL_SPECULAR,
+        GL_EMISSION,
     };
 
     std::vector<GLColor32F> colors = {
-        kAmbientTestValue, kDiffuseTestValue, kSpecularTestValue, kEmissiveTestValue,
+        kAmbientTestValue,
+        kDiffuseTestValue,
+        kSpecularTestValue,
+        kEmissiveTestValue,
     };
 
     GLColor32F actualColor;
@@ -101,16 +116,16 @@ TEST_P(MaterialsTest, SetParameters)
     {
         glMaterialfv(GL_FRONT_AND_BACK, pnames[i], &colors[i].R);
         EXPECT_GL_NO_ERROR();
-        glGetMaterialfv(GL_FRONT_AND_BACK, pnames[i], &actualColor.R);
+        glGetMaterialfv(GL_FRONT, pnames[i], &actualColor.R);
         EXPECT_GL_NO_ERROR();
         EXPECT_EQ(colors[i], actualColor);
     }
 
     glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, kShininessTestValue);
     EXPECT_GL_NO_ERROR();
-    glGetMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, &actualShininess);
+    glGetMaterialfv(GL_FRONT, GL_SHININESS, &actualShininess);
     EXPECT_GL_NO_ERROR();
     EXPECT_EQ(kShininessTestValue, actualShininess);
 }
 
-ANGLE_INSTANTIATE_TEST(MaterialsTest, ES1_D3D11(), ES1_OPENGL(), ES1_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES1(MaterialsTest);

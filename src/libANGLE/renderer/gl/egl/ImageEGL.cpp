@@ -15,6 +15,7 @@
 #include "libANGLE/renderer/gl/StateManagerGL.h"
 #include "libANGLE/renderer/gl/TextureGL.h"
 #include "libANGLE/renderer/gl/egl/ContextEGL.h"
+#include "libANGLE/renderer/gl/egl/ExternalImageSiblingEGL.h"
 #include "libANGLE/renderer/gl/egl/FunctionsEGL.h"
 
 namespace rx
@@ -60,16 +61,23 @@ egl::Error ImageEGL::initialize(const egl::Display *display)
             attributes.push_back(mState.imageIndex.getLayerIndex());
         }
 
-        const TextureGL *textureGL = GetImplAs<TextureGL>(GetAs<gl::Texture>(mState.source.get()));
+        const TextureGL *textureGL = GetImplAs<TextureGL>(GetAs<gl::Texture>(mState.source));
         buffer                = gl_egl::GLObjectHandleToEGLClientBuffer(textureGL->getTextureID());
         mNativeInternalFormat = textureGL->getNativeInternalFormat(mState.imageIndex);
     }
     else if (egl::IsRenderbufferTarget(mTarget))
     {
         const RenderbufferGL *renderbufferGL =
-            GetImplAs<RenderbufferGL>(GetAs<gl::Renderbuffer>(mState.source.get()));
+            GetImplAs<RenderbufferGL>(GetAs<gl::Renderbuffer>(mState.source));
         buffer = gl_egl::GLObjectHandleToEGLClientBuffer(renderbufferGL->getRenderbufferID());
         mNativeInternalFormat = renderbufferGL->getNativeInternalFormat();
+    }
+    else if (egl::IsExternalImageTarget(mTarget))
+    {
+        const ExternalImageSiblingEGL *externalImageSibling =
+            GetImplAs<ExternalImageSiblingEGL>(GetAs<egl::ExternalImageSibling>(mState.source));
+        buffer                = externalImageSibling->getBuffer();
+        mNativeInternalFormat = externalImageSibling->getFormat().info->sizedInternalFormat;
     }
     else
     {
@@ -90,16 +98,16 @@ egl::Error ImageEGL::initialize(const egl::Display *display)
     return egl::NoError();
 }
 
-gl::Error ImageEGL::orphan(const gl::Context *context, egl::ImageSibling *sibling)
+angle::Result ImageEGL::orphan(const gl::Context *context, egl::ImageSibling *sibling)
 {
     // Nothing to do, the native EGLImage will orphan automatically.
-    return gl::NoError();
+    return angle::Result::Continue;
 }
 
-gl::Error ImageEGL::setTexture2D(const gl::Context *context,
-                                 gl::TextureType type,
-                                 TextureGL *texture,
-                                 GLenum *outInternalFormat)
+angle::Result ImageEGL::setTexture2D(const gl::Context *context,
+                                     gl::TextureType type,
+                                     TextureGL *texture,
+                                     GLenum *outInternalFormat)
 {
     const FunctionsGL *functionsGL = GetFunctionsGL(context);
     StateManagerGL *stateManager   = GetStateManagerGL(context);
@@ -111,12 +119,12 @@ gl::Error ImageEGL::setTexture2D(const gl::Context *context,
     functionsGL->eGLImageTargetTexture2DOES(ToGLenum(type), mImage);
     *outInternalFormat = mNativeInternalFormat;
 
-    return gl::NoError();
+    return angle::Result::Continue;
 }
 
-gl::Error ImageEGL::setRenderbufferStorage(const gl::Context *context,
-                                           RenderbufferGL *renderbuffer,
-                                           GLenum *outInternalFormat)
+angle::Result ImageEGL::setRenderbufferStorage(const gl::Context *context,
+                                               RenderbufferGL *renderbuffer,
+                                               GLenum *outInternalFormat)
 {
     const FunctionsGL *functionsGL = GetFunctionsGL(context);
     StateManagerGL *stateManager   = GetStateManagerGL(context);
@@ -128,7 +136,7 @@ gl::Error ImageEGL::setRenderbufferStorage(const gl::Context *context,
     functionsGL->eGLImageTargetRenderbufferStorageOES(GL_RENDERBUFFER, mImage);
     *outInternalFormat = mNativeInternalFormat;
 
-    return gl::NoError();
+    return angle::Result::Continue;
 }
 
 }  // namespace rx

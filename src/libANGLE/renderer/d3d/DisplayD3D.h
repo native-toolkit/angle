@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,14 +9,14 @@
 #ifndef LIBANGLE_RENDERER_D3D_DISPLAYD3D_H_
 #define LIBANGLE_RENDERER_D3D_DISPLAYD3D_H_
 
-#include "libANGLE/renderer/DisplayImpl.h"
 #include "libANGLE/Device.h"
+#include "libANGLE/renderer/DisplayImpl.h"
+
+#include "libANGLE/renderer/d3d/RendererD3D.h"
 
 namespace rx
 {
-class RendererD3D;
-
-class DisplayD3D : public DisplayImpl
+class DisplayD3D : public DisplayImpl, public d3d::Context
 {
   public:
     DisplayD3D(const egl::DisplayState &state);
@@ -43,7 +43,8 @@ class DisplayD3D : public DisplayImpl
                            EGLenum target,
                            const egl::AttributeMap &attribs) override;
 
-    ContextImpl *createContext(const gl::ContextState &state,
+    ContextImpl *createContext(const gl::State &state,
+                               gl::ErrorSet *errorSet,
                                const egl::Config *configuration,
                                const gl::Context *shareContext,
                                const egl::AttributeMap &attribs) override;
@@ -51,7 +52,14 @@ class DisplayD3D : public DisplayImpl
     StreamProducerImpl *createStreamProducerD3DTexture(egl::Stream::ConsumerType consumerType,
                                                        const egl::AttributeMap &attribs) override;
 
-    egl::Error makeCurrent(egl::Surface *drawSurface, egl::Surface *readSurface, gl::Context *context) override;
+    ExternalImageSiblingImpl *createExternalImageSibling(const gl::Context *context,
+                                                         EGLenum target,
+                                                         EGLClientBuffer buffer,
+                                                         const egl::AttributeMap &attribs) override;
+
+    egl::Error makeCurrent(egl::Surface *drawSurface,
+                           egl::Surface *readSurface,
+                           gl::Context *context) override;
 
     egl::ConfigSet generateConfigs() override;
 
@@ -63,6 +71,10 @@ class DisplayD3D : public DisplayImpl
                                     EGLenum buftype,
                                     EGLClientBuffer clientBuffer,
                                     const egl::AttributeMap &attribs) const override;
+    egl::Error validateImageClientBuffer(const gl::Context *context,
+                                         EGLenum target,
+                                         EGLClientBuffer clientBuffer,
+                                         const egl::AttributeMap &attribs) const override;
 
     DeviceImpl *createDevice() override;
 
@@ -71,6 +83,17 @@ class DisplayD3D : public DisplayImpl
     egl::Error waitClient(const gl::Context *context) override;
     egl::Error waitNative(const gl::Context *context, EGLint engine) override;
     gl::Version getMaxSupportedESVersion() const override;
+    gl::Version getMaxConformantESVersion() const override;
+
+    void handleResult(HRESULT hr,
+                      const char *message,
+                      const char *file,
+                      const char *function,
+                      unsigned int line) override;
+
+    const std::string &getStoredErrorString() const { return mStoredErrorString; }
+
+    void populateFeatureList(angle::FeatureList *features) override;
 
   private:
     void generateExtensions(egl::DisplayExtensions *outExtensions) const override;
@@ -79,8 +102,9 @@ class DisplayD3D : public DisplayImpl
     egl::Display *mDisplay;
 
     rx::RendererD3D *mRenderer;
+    std::string mStoredErrorString;
 };
 
-}
+}  // namespace rx
 
-#endif // LIBANGLE_RENDERER_D3D_DISPLAYD3D_H_
+#endif  // LIBANGLE_RENDERER_D3D_DISPLAYD3D_H_

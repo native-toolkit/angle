@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -15,10 +15,6 @@ namespace angle
 {
 
 // MemoryBuffer implementation.
-MemoryBuffer::MemoryBuffer() : mSize(0), mData(nullptr)
-{
-}
-
 MemoryBuffer::~MemoryBuffer()
 {
     free(mData);
@@ -82,13 +78,9 @@ MemoryBuffer &MemoryBuffer::operator=(MemoryBuffer &&other)
 
 // ScratchBuffer implementation.
 
-ScratchBuffer::ScratchBuffer(uint32_t lifetime) : mLifetime(lifetime), mResetCounter(lifetime)
-{
-}
+ScratchBuffer::ScratchBuffer(uint32_t lifetime) : mLifetime(lifetime), mResetCounter(lifetime) {}
 
-ScratchBuffer::~ScratchBuffer()
-{
-}
+ScratchBuffer::~ScratchBuffer() {}
 
 bool ScratchBuffer::get(size_t requestedSize, MemoryBuffer **memoryBufferOut)
 {

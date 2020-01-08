@@ -9,7 +9,7 @@
 #include "test_utils/ANGLETest.h"
 #include "test_utils/gl_raii.h"
 
-#include "random_utils.h"
+#include "util/random_utils.h"
 
 #include <stdint.h>
 
@@ -77,4 +77,4 @@ TEST_P(ClientActiveTextureTest, Set)
     }
 }
 
-ANGLE_INSTANTIATE_TEST(ClientActiveTextureTest, ES1_D3D11(), ES1_OPENGL(), ES1_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES1(ClientActiveTextureTest);

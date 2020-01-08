@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -42,8 +42,7 @@ class FunctionCallFinder : public TIntermTraverser
         : TIntermTraverser(true, false, false),
           mFunctionMangledName(functionMangledName),
           mNodeFound(nullptr)
-    {
-    }
+    {}
 
     bool visitAggregate(Visit visit, TIntermAggregate *node) override
     {
@@ -81,9 +80,10 @@ bool compileTestShader(GLenum type,
         return false;
     }
 
-    const char *shaderStrings[] = { shaderString.c_str() };
+    const char *shaderStrings[] = {shaderString.c_str()};
 
-    bool compilationSuccess = translator->compile(shaderStrings, 1, SH_OBJECT_CODE | compileOptions);
+    bool compilationSuccess =
+        translator->compile(shaderStrings, 1, SH_OBJECT_CODE | compileOptions);
     TInfoSink &infoSink = translator->getInfoSink();
     if (translatedCode)
         *translatedCode = infoSink.obj.c_str();
@@ -103,7 +103,8 @@ bool compileTestShader(GLenum type,
 {
     ShBuiltInResources resources;
     sh::InitBuiltInResources(&resources);
-    return compileTestShader(type, spec, output, shaderString, &resources, compileOptions, translatedCode, infoLog);
+    return compileTestShader(type, spec, output, shaderString, &resources, compileOptions,
+                             translatedCode, infoLog);
 }
 
 MatchOutputCodeTest::MatchOutputCodeTest(GLenum shaderType,
@@ -153,6 +154,27 @@ bool MatchOutputCodeTest::compileWithSettings(ShShaderOutput output,
 {
     return compileTestShader(mShaderType, SH_GLES3_1_SPEC, output, shaderString, &mResources,
                              compileOptions, translatedCode, infoLog);
+}
+
+bool MatchOutputCodeTest::foundInCodeRegex(ShShaderOutput output,
+                                           const std::regex &regexToFind,
+                                           std::smatch *match) const
+{
+    const auto code = mOutputCode.find(output);
+    EXPECT_NE(mOutputCode.end(), code);
+    if (code == mOutputCode.end())
+    {
+        return std::string::npos;
+    }
+
+    if (match)
+    {
+        return std::regex_search(code->second, *match, regexToFind);
+    }
+    else
+    {
+        return std::regex_search(code->second, regexToFind);
+    }
 }
 
 bool MatchOutputCodeTest::foundInCode(ShShaderOutput output, const char *stringToFind) const
@@ -224,6 +246,18 @@ bool MatchOutputCodeTest::foundInCode(const char *stringToFind) const
     for (auto &code : mOutputCode)
     {
         if (!foundInCode(code.first, stringToFind))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool MatchOutputCodeTest::foundInCodeRegex(const std::regex &regexToFind, std::smatch *match) const
+{
+    for (auto &code : mOutputCode)
+    {
+        if (!foundInCodeRegex(code.first, regexToFind, match))
         {
             return false;
         }

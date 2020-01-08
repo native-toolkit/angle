@@ -64,17 +64,23 @@ class DrawElementsTest : public ANGLETest
     GLuint mProgram;
 };
 
+class WebGLDrawElementsTest : public DrawElementsTest
+{
+  public:
+    WebGLDrawElementsTest() { setWebGLCompatibilityEnabled(true); }
+};
+
 // Test no error is generated when using client-side arrays, indices = nullptr and count = 0
 TEST_P(DrawElementsTest, ClientSideNullptrArrayZeroCount)
 {
-    const std::string &vert =
+    constexpr char kVS[] =
         "attribute vec3 a_pos;\n"
         "void main()\n"
         "{\n"
         "    gl_Position = vec4(a_pos, 1.0);\n"
         "}\n";
 
-    ANGLE_GL_PROGRAM(program, vert, essl1_shaders::fs::Blue());
+    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Blue());
 
     GLint posLocation = glGetAttribLocation(program.get(), "a_pos");
     ASSERT_NE(-1, posLocation);
@@ -105,8 +111,10 @@ TEST_P(DrawElementsTest, ClientSideNullptrArrayZeroCount)
 // deleting the applied index buffer.
 TEST_P(DrawElementsTest, DeletingAfterStreamingIndexes)
 {
+    // http://anglebug.com/4092
+    ANGLE_SKIP_TEST_IF(IsWindows() && IsD3D11());
     // Init program
-    const std::string &vertexShader =
+    constexpr char kVS[] =
         "attribute vec2 position;\n"
         "attribute vec2 testFlag;\n"
         "varying vec2 v_data;\n"
@@ -115,13 +123,13 @@ TEST_P(DrawElementsTest, DeletingAfterStreamingIndexes)
         "  v_data = testFlag;\n"
         "}";
 
-    const std::string &fragmentShader =
+    constexpr char kFS[] =
         "varying highp vec2 v_data;\n"
         "void main() {\n"
         "  gl_FragColor = vec4(v_data, 0, 1);\n"
         "}";
 
-    mProgram = CompileProgram(vertexShader, fragmentShader);
+    mProgram = CompileProgram(kVS, kFS);
     ASSERT_NE(0u, mProgram);
     glUseProgram(mProgram);
 
@@ -260,16 +268,16 @@ TEST_P(DrawElementsTest, DeletingAfterStreamingIndexes)
     ASSERT_GL_NO_ERROR();
 }
 // Test that the offset in the index buffer is forced to be a multiple of the element size
-TEST_P(DrawElementsTest, DrawElementsTypeAlignment)
+TEST_P(WebGLDrawElementsTest, DrawElementsTypeAlignment)
 {
-    const std::string &vert =
+    constexpr char kVS[] =
         "attribute vec3 a_pos;\n"
         "void main()\n"
         "{\n"
         "    gl_Position = vec4(a_pos, 1.0);\n"
         "}\n";
 
-    ANGLE_GL_PROGRAM(program, vert, essl1_shaders::fs::Blue());
+    ANGLE_GL_PROGRAM(program, kVS, essl1_shaders::fs::Blue());
 
     GLint posLocation = glGetAttribLocation(program, "a_pos");
     ASSERT_NE(-1, posLocation);
@@ -297,7 +305,7 @@ TEST_P(DrawElementsTest, DrawElementsTypeAlignment)
     glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_SHORT, zeroIndices);
     ASSERT_GL_NO_ERROR();
 
-    const GLubyte indices2[] = {0, 0, 0, 0, 0};
+    const GLushort indices2[] = {0, 0, 0, 0, 0, 0};
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices2), indices2, GL_STATIC_DRAW);
 
@@ -305,5 +313,6 @@ TEST_P(DrawElementsTest, DrawElementsTypeAlignment)
     EXPECT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
-ANGLE_INSTANTIATE_TEST(DrawElementsTest, ES3_OPENGL(), ES3_OPENGLES());
-}
+ANGLE_INSTANTIATE_TEST_ES3(DrawElementsTest);
+ANGLE_INSTANTIATE_TEST_ES2(WebGLDrawElementsTest);
+}  // namespace

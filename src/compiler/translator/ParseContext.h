@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2002-2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2002 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -40,9 +40,11 @@ class TParseContext : angle::NonCopyable
                   ShCompileOptions options,
                   bool checksPrecErrors,
                   TDiagnostics *diagnostics,
-                  const ShBuiltInResources &resources);
+                  const ShBuiltInResources &resources,
+                  ShShaderOutput outputType);
     ~TParseContext();
 
+    bool anyMultiviewExtensionAvailable();
     const angle::pp::Preprocessor &getPreprocessor() const { return mPreprocessor; }
     angle::pp::Preprocessor &getPreprocessor() { return mPreprocessor; }
     void *getScanner() const { return mScanner; }
@@ -246,7 +248,7 @@ class TParseContext : angle::NonCopyable
                                                         const TSourceLoc &initLocation,
                                                         TIntermTyped *initializer);
 
-    TIntermInvariantDeclaration *parseInvariantDeclaration(
+    TIntermGlobalQualifierDeclaration *parseGlobalQualifierDeclaration(
         const TTypeQualifierBuilder &typeQualifierBuilder,
         const TSourceLoc &identifierLoc,
         const ImmutableString &identifier,
@@ -373,6 +375,10 @@ class TParseContext : angle::NonCopyable
                           const TSourceLoc &intValueLine,
                           const std::string &intValueString,
                           int *numMaxVertices);
+    void parseIndexLayoutQualifier(int intValue,
+                                   const TSourceLoc &intValueLine,
+                                   const std::string &intValueString,
+                                   int *index);
     TLayoutQualifier parseLayoutQualifier(const ImmutableString &qualifierType,
                                           const TSourceLoc &qualifierTypeLine);
     TLayoutQualifier parseLayoutQualifier(const ImmutableString &qualifierType,
@@ -425,7 +431,7 @@ class TParseContext : angle::NonCopyable
     void appendStatement(TIntermBlock *block, TIntermNode *statement);
 
     void checkTextureGather(TIntermAggregate *functionCall);
-    void checkTextureOffsetConst(TIntermAggregate *functionCall);
+    void checkTextureOffset(TIntermAggregate *functionCall);
     void checkImageMemoryAccessForBuiltinFunctions(TIntermAggregate *functionCall);
     void checkImageMemoryAccessForUserDefinedFunctions(const TFunction *functionDefinition,
                                                        const TIntermAggregate *functionCall);
@@ -454,8 +460,10 @@ class TParseContext : angle::NonCopyable
         return mGeometryShaderOutputPrimitiveType;
     }
 
+    ShShaderOutput getOutputType() const { return mOutputType; }
+
     // TODO(jmadill): make this private
-    TSymbolTable &symbolTable;   // symbol table that goes with the language currently being parsed
+    TSymbolTable &symbolTable;  // symbol table that goes with the language currently being parsed
 
   private:
     class AtomicCounterBindingState;
@@ -511,6 +519,9 @@ class TParseContext : angle::NonCopyable
     void checkAtomicCounterOffsetDoesNotOverlap(bool forceAppend,
                                                 const TSourceLoc &loc,
                                                 TType *type);
+    void checkAtomicCounterOffsetAlignment(const TSourceLoc &location, const TType &type);
+
+    void checkIndexIsNotSpecified(const TSourceLoc &location, int index);
     void checkBindingIsValid(const TSourceLoc &identifierLocation, const TType &type);
     void checkBindingIsNotSpecified(const TSourceLoc &location, int binding);
     void checkOffsetIsNotSpecified(const TSourceLoc &location, int offset);
@@ -535,6 +546,12 @@ class TParseContext : angle::NonCopyable
     bool checkUnsizedArrayConstructorArgumentDimensionality(const TIntermSequence &arguments,
                                                             TType type,
                                                             const TSourceLoc &line);
+    // Check texture offset is within range.
+    void checkSingleTextureOffset(const TSourceLoc &line,
+                                  const TConstantUnion *values,
+                                  size_t size,
+                                  int minOffsetValue,
+                                  int maxOffsetValue);
 
     // Will set the size of the outermost array according to geometry shader input layout.
     void checkGeometryShaderInputAndSetArraySize(const TSourceLoc &location,
@@ -644,6 +661,11 @@ class TParseContext : angle::NonCopyable
     int mGeometryShaderMaxVertices;
     int mMaxGeometryShaderInvocations;
     int mMaxGeometryShaderMaxVertices;
+
+    // Track when we add new scope for func body in ESSL 1.00 spec
+    bool mFunctionBodyNewScope;
+
+    ShShaderOutput mOutputType;
 };
 
 int PaParseStrings(size_t count,

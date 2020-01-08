@@ -24,14 +24,11 @@
 #include <EGL/eglext.h>
 
 #include "egluGLContextFactory.hpp"
-#include "system_utils.h"
 #include "tcuANGLENativeDisplayFactory.h"
 #include "tcuNullContextFactory.hpp"
+#include "util/test_utils.h"
 
 static_assert(EGL_DONT_CARE == -1, "Unexpected value for EGL_DONT_CARE");
-
-// We should clean this up at some point by making it a properly exposed enum.
-#define EGL_PLATFORM_ANGLE_PLATFORM_METHODS_ANGLEX 0x9999
 
 namespace tcu
 {
@@ -69,7 +66,7 @@ ANGLEPlatform::ANGLEPlatform(angle::LogErrorFunc logErrorFunc)
             "angle-d3d11-fl93", "ANGLE D3D11 FL9_3 Display", d3d1193Attribs, &mEvents);
         m_nativeDisplayFactoryRegistry.registerFactory(d3d1193Factory);
     }
-#endif // (DE_OS == DE_OS_WIN32)
+#endif  // (DE_OS == DE_OS_WIN32)
 
 #if defined(ANGLE_USE_OZONE) || (DE_OS == DE_OS_ANDROID) || (DE_OS == DE_OS_WIN32)
     {
@@ -100,6 +97,25 @@ ANGLEPlatform::ANGLEPlatform(angle::LogErrorFunc logErrorFunc)
     }
 #endif
 
+#if (DE_OS == DE_OS_WIN32) || (DE_OS == DE_OS_UNIX) || (DE_OS == DE_OS_OSX)
+    {
+        std::vector<eglw::EGLAttrib> swsAttribs = initAttribs(
+            EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE, EGL_PLATFORM_ANGLE_DEVICE_TYPE_SWIFTSHADER_ANGLE);
+        m_nativeDisplayFactoryRegistry.registerFactory(new ANGLENativeDisplayFactory(
+            "angle-swiftshader", "ANGLE SwiftShader Display", swsAttribs, &mEvents));
+    }
+#endif
+
+#if (DE_OS == DE_OS_OSX)
+    {
+        std::vector<eglw::EGLAttrib> mtlAttribs = initAttribs(EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE);
+
+        auto *mtlFactory = new ANGLENativeDisplayFactory("angle-metal", "ANGLE Metal Display",
+                                                         mtlAttribs, &mEvents);
+        m_nativeDisplayFactoryRegistry.registerFactory(mtlFactory);
+    }
+#endif
+
     {
         std::vector<eglw::EGLAttrib> nullAttribs = initAttribs(EGL_PLATFORM_ANGLE_TYPE_NULL_ANGLE);
 
@@ -108,15 +124,14 @@ ANGLEPlatform::ANGLEPlatform(angle::LogErrorFunc logErrorFunc)
         m_nativeDisplayFactoryRegistry.registerFactory(nullFactory);
     }
 
-    m_contextFactoryRegistry.registerFactory(new eglu::GLContextFactory(m_nativeDisplayFactoryRegistry));
+    m_contextFactoryRegistry.registerFactory(
+        new eglu::GLContextFactory(m_nativeDisplayFactoryRegistry));
 
     // Add Null context type for use in generating case lists
     m_contextFactoryRegistry.registerFactory(new null::NullGLContextFactory());
 }
 
-ANGLEPlatform::~ANGLEPlatform()
-{
-}
+ANGLEPlatform::~ANGLEPlatform() {}
 
 bool ANGLEPlatform::processEvents()
 {

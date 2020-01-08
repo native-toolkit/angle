@@ -10,7 +10,7 @@
 #include "test_utils/gl_raii.h"
 
 #include "common/matrix_utils.h"
-#include "random_utils.h"
+#include "util/random_utils.h"
 
 #include <stdint.h>
 
@@ -173,4 +173,4 @@ TEST_P(MatrixBuiltinsTest, OrthoNegative)
     EXPECT_GL_ERROR(GL_INVALID_VALUE);
 }
 
-ANGLE_INSTANTIATE_TEST(MatrixBuiltinsTest, ES1_D3D11(), ES1_OPENGL(), ES1_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES1(MatrixBuiltinsTest);

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -128,7 +128,8 @@ class DisplayOzone final : public DisplayEGL
                                      NativePixmapType nativePixmap,
                                      const egl::AttributeMap &attribs) override;
 
-    ContextImpl *createContext(const gl::ContextState &state,
+    ContextImpl *createContext(const gl::State &state,
+                               gl::ErrorSet *errorSet,
                                const egl::Config *configuration,
                                const gl::Context *shareContext,
                                const egl::AttributeMap &attribs) override;
@@ -154,6 +155,14 @@ class DisplayOzone final : public DisplayEGL
     // This function will make sure the drawable's swap interval is the
     // one required so that the subsequent swapBuffers acts as expected.
     void setSwapInterval(EGLSurface drawable, SwapControlData *data);
+
+    WorkerContext *createWorkerContext(std::string *infoLog,
+                                       EGLContext sharedContext,
+                                       const native_egl::AttributeVector workerAttribs) override;
+
+    void initializeFrontendFeatures(angle::FrontendFeatures *features) const override;
+
+    void populateFeatureList(angle::FeatureList *features) override;
 
   private:
     void generateExtensions(egl::DisplayExtensions *outExtensions) const override;

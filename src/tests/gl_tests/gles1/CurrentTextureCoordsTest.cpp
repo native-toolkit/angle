@@ -7,11 +7,10 @@
 // CurrentTextureCoordsTest.cpp: Tests basic usage of glMultiTexCoord4(f|x).
 
 #include "test_utils/ANGLETest.h"
-#include "test_utils/gl_raii.h"
-
-#include "random_utils.h"
 
 #include "common/vector_utils.h"
+#include "test_utils/gl_raii.h"
+#include "util/random_utils.h"
 
 #include <array>
 
@@ -97,4 +96,4 @@ TEST_P(CurrentTextureCoordsTest, Set)
     }
 }
 
-ANGLE_INSTANTIATE_TEST(CurrentTextureCoordsTest, ES1_D3D11(), ES1_OPENGL(), ES1_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES1(CurrentTextureCoordsTest);

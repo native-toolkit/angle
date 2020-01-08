@@ -9,7 +9,7 @@
 #include "test_utils/ANGLETest.h"
 #include "test_utils/gl_raii.h"
 
-#include "random_utils.h"
+#include "util/random_utils.h"
 
 #include <stdint.h>
 
@@ -130,4 +130,4 @@ TEST_P(FogTest, Set)
     EXPECT_EQ(0.4f, fogValue[3]);
 }
 
-ANGLE_INSTANTIATE_TEST(FogTest, ES1_D3D11(), ES1_OPENGL(), ES1_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES1(FogTest);

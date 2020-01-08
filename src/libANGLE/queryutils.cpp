@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,6 +13,8 @@
 #include "libANGLE/Buffer.h"
 #include "libANGLE/Config.h"
 #include "libANGLE/Context.h"
+#include "libANGLE/Display.h"
+#include "libANGLE/EGLSync.h"
 #include "libANGLE/Fence.h"
 #include "libANGLE/Framebuffer.h"
 #include "libANGLE/GLES1State.h"
@@ -31,6 +33,100 @@ namespace gl
 
 namespace
 {
+
+template <bool isPureInteger>
+ColorGeneric ConvertToColor(const GLfloat *params)
+{
+    if (isPureInteger)
+    {
+        UNREACHABLE();
+        return ColorGeneric(ColorI());
+    }
+    else
+    {
+        return ColorGeneric(ColorF::fromData(params));
+    }
+}
+
+template <bool isPureInteger>
+ColorGeneric ConvertToColor(const GLint *params)
+{
+    if (isPureInteger)
+    {
+        return ColorGeneric(ColorI(params[0], params[1], params[2], params[3]));
+    }
+    else
+    {
+        return ColorGeneric(ColorF(normalizedToFloat(params[0]), normalizedToFloat(params[1]),
+                                   normalizedToFloat(params[2]), normalizedToFloat(params[3])));
+    }
+}
+
+template <bool isPureInteger>
+ColorGeneric ConvertToColor(const GLuint *params)
+{
+    if (isPureInteger)
+    {
+        return ColorGeneric(ColorUI(params[0], params[1], params[2], params[3]));
+    }
+    else
+    {
+        UNREACHABLE();
+        return ColorGeneric(ColorF());
+    }
+}
+
+template <bool isPureInteger>
+void ConvertFromColor(const ColorGeneric &color, GLfloat *outParams)
+{
+    if (isPureInteger)
+    {
+        UNREACHABLE();
+    }
+    else
+    {
+        ASSERT(color.type == ColorGeneric::Type::Float);
+        color.colorF.writeData(outParams);
+    }
+}
+
+template <bool isPureInteger>
+void ConvertFromColor(const ColorGeneric &color, GLint *outParams)
+{
+    if (isPureInteger)
+    {
+        ASSERT(color.type == ColorGeneric::Type::Int);
+        outParams[0] = color.colorI.red;
+        outParams[1] = color.colorI.green;
+        outParams[2] = color.colorI.blue;
+        outParams[3] = color.colorI.alpha;
+    }
+    else
+    {
+        ASSERT(color.type == ColorGeneric::Type::Float);
+        outParams[0] = floatToNormalized<GLint>(color.colorF.red);
+        outParams[1] = floatToNormalized<GLint>(color.colorF.green);
+        outParams[2] = floatToNormalized<GLint>(color.colorF.blue);
+        outParams[3] = floatToNormalized<GLint>(color.colorF.alpha);
+    }
+}
+
+template <bool isPureInteger>
+void ConvertFromColor(const ColorGeneric &color, GLuint *outParams)
+{
+    if (isPureInteger)
+    {
+        ASSERT(color.type == ColorGeneric::Type::UInt);
+        outParams[0] = color.colorUI.red;
+        outParams[1] = color.colorUI.green;
+        outParams[2] = color.colorUI.blue;
+        outParams[3] = color.colorUI.alpha;
+    }
+    else
+    {
+        UNREACHABLE();
+    }
+}
 
 template <typename ParamType>
 void QueryTexLevelParameterBase(const Texture *texture,
@@ -111,14 +207,21 @@ void QueryTexLevelParameterBase(const Texture *texture,
         case GL_TEXTURE_COMPRESSED:
             *params = CastFromStateValue<ParamType>(pname, static_cast<GLint>(info->compressed));
             break;
+        case GL_MEMORY_SIZE_ANGLE:
+            *params =
+                CastFromStateValue<ParamType>(pname, texture->getLevelMemorySize(target, level));
+            break;
         default:
             UNREACHABLE();
             break;
     }
 }
 
-template <typename ParamType>
-void QueryTexParameterBase(const Texture *texture, GLenum pname, ParamType *params)
+template <bool isPureInteger, typename ParamType>
+void QueryTexParameterBase(const Context *context,
+                           const Texture *texture,
+                           GLenum pname,
+                           ParamType *params)
 {
     ASSERT(texture != nullptr);
 
@@ -170,10 +273,10 @@ void QueryTexParameterBase(const Texture *texture, GLenum pname, ParamType *para
             *params = CastFromGLintStateValue<ParamType>(pname, texture->getMaxLevel());
             break;
         case GL_TEXTURE_MIN_LOD:
-            *params = CastFromStateValue<ParamType>(pname, texture->getSamplerState().minLod);
+            *params = CastFromStateValue<ParamType>(pname, texture->getMinLod());
             break;
         case GL_TEXTURE_MAX_LOD:
-            *params = CastFromStateValue<ParamType>(pname, texture->getSamplerState().maxLod);
+            *params = CastFromStateValue<ParamType>(pname, texture->getMaxLod());
             break;
         case GL_TEXTURE_COMPARE_MODE:
             *params = CastFromGLintStateValue<ParamType>(pname, texture->getCompareMode());
@@ -200,13 +303,30 @@ void QueryTexParameterBase(const Texture *texture, GLenum pname, ParamType *para
         case GL_GENERATE_MIPMAP:
             *params = CastFromGLintStateValue<ParamType>(pname, texture->getGenerateMipmapHint());
             break;
+        case GL_MEMORY_SIZE_ANGLE:
+            *params = CastFromStateValue<ParamType>(pname, texture->getMemorySize());
+            break;
+        case GL_TEXTURE_BORDER_COLOR:
+            ConvertFromColor<isPureInteger>(texture->getBorderColor(), params);
+            break;
+        case GL_TEXTURE_NATIVE_ID_ANGLE:
+            *params = CastFromStateValue<ParamType>(pname, texture->getNativeID());
+            break;
+        case GL_IMPLEMENTATION_COLOR_READ_FORMAT:
+            *params = CastFromGLintStateValue<ParamType>(
+                pname, texture->getImplementationColorReadFormat(context));
+            break;
+        case GL_IMPLEMENTATION_COLOR_READ_TYPE:
+            *params = CastFromGLintStateValue<ParamType>(
+                pname, texture->getImplementationColorReadType(context));
+            break;
         default:
             UNREACHABLE();
             break;
     }
 }
 
-template <typename ParamType>
+template <bool isPureInteger, typename ParamType>
 void SetTexParameterBase(Context *context, Texture *texture, GLenum pname, const ParamType *params)
 {
     ASSERT(texture != nullptr);
@@ -214,64 +334,65 @@ void SetTexParameterBase(Context *context, Texture *texture, GLenum pname, const
     switch (pname)
     {
         case GL_TEXTURE_WRAP_S:
-            texture->setWrapS(ConvertToGLenum(pname, params[0]));
+            texture->setWrapS(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_WRAP_T:
-            texture->setWrapT(ConvertToGLenum(pname, params[0]));
+            texture->setWrapT(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_WRAP_R:
-            texture->setWrapR(ConvertToGLenum(pname, params[0]));
+            texture->setWrapR(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_MIN_FILTER:
-            texture->setMinFilter(ConvertToGLenum(pname, params[0]));
+            texture->setMinFilter(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_MAG_FILTER:
-            texture->setMagFilter(ConvertToGLenum(pname, params[0]));
+            texture->setMagFilter(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_USAGE_ANGLE:
-            texture->setUsage(ConvertToGLenum(pname, params[0]));
+            texture->setUsage(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_MAX_ANISOTROPY_EXT:
-            texture->setMaxAnisotropy(CastQueryValueTo<GLfloat>(pname, params[0]));
+            texture->setMaxAnisotropy(context, CastQueryValueTo<GLfloat>(pname, params[0]));
             break;
         case GL_TEXTURE_COMPARE_MODE:
-            texture->setCompareMode(ConvertToGLenum(pname, params[0]));
+            texture->setCompareMode(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_COMPARE_FUNC:
-            texture->setCompareFunc(ConvertToGLenum(pname, params[0]));
+            texture->setCompareFunc(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_SWIZZLE_R:
-            texture->setSwizzleRed(ConvertToGLenum(pname, params[0]));
+            texture->setSwizzleRed(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_SWIZZLE_G:
-            texture->setSwizzleGreen(ConvertToGLenum(pname, params[0]));
+            texture->setSwizzleGreen(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_SWIZZLE_B:
-            texture->setSwizzleBlue(ConvertToGLenum(pname, params[0]));
+            texture->setSwizzleBlue(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_SWIZZLE_A:
-            texture->setSwizzleAlpha(ConvertToGLenum(pname, params[0]));
+            texture->setSwizzleAlpha(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_BASE_LEVEL:
         {
-            context->handleError(texture->setBaseLevel(
+            (void)(texture->setBaseLevel(
                 context, clampCast<GLuint>(CastQueryValueTo<GLint>(pname, params[0]))));
             break;
         }
         case GL_TEXTURE_MAX_LEVEL:
-            texture->setMaxLevel(clampCast<GLuint>(CastQueryValueTo<GLint>(pname, params[0])));
+            texture->setMaxLevel(context,
+                                 clampCast<GLuint>(CastQueryValueTo<GLint>(pname, params[0])));
             break;
         case GL_TEXTURE_MIN_LOD:
-            texture->setMinLod(CastQueryValueTo<GLfloat>(pname, params[0]));
+            texture->setMinLod(context, CastQueryValueTo<GLfloat>(pname, params[0]));
             break;
         case GL_TEXTURE_MAX_LOD:
-            texture->setMaxLod(CastQueryValueTo<GLfloat>(pname, params[0]));
+            texture->setMaxLod(context, CastQueryValueTo<GLfloat>(pname, params[0]));
             break;
         case GL_DEPTH_STENCIL_TEXTURE_MODE:
-            texture->setDepthStencilTextureMode(ConvertToGLenum(pname, params[0]));
+            texture->setDepthStencilTextureMode(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_SRGB_DECODE_EXT:
-            texture->setSRGBDecode(ConvertToGLenum(pname, params[0]));
+            texture->setSRGBDecode(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_CROP_RECT_OES:
             texture->setCrop(gl::Rectangle(CastQueryValueTo<GLint>(pname, params[0]),
@@ -282,13 +403,16 @@ void SetTexParameterBase(Context *context, Texture *texture, GLenum pname, const
         case GL_GENERATE_MIPMAP:
             texture->setGenerateMipmapHint(ConvertToGLenum(params[0]));
             break;
+        case GL_TEXTURE_BORDER_COLOR:
+            texture->setBorderColor(context, ConvertToColor<isPureInteger>(params));
+            break;
         default:
             UNREACHABLE();
             break;
     }
 }
 
-template <typename ParamType>
+template <bool isPureInteger, typename ParamType>
 void QuerySamplerParameterBase(const Sampler *sampler, GLenum pname, ParamType *params)
 {
     switch (pname)
@@ -326,54 +450,65 @@ void QuerySamplerParameterBase(const Sampler *sampler, GLenum pname, ParamType *
         case GL_TEXTURE_SRGB_DECODE_EXT:
             *params = CastFromGLintStateValue<ParamType>(pname, sampler->getSRGBDecode());
             break;
+        case GL_TEXTURE_BORDER_COLOR:
+            ConvertFromColor<isPureInteger>(sampler->getBorderColor(), params);
+            break;
         default:
             UNREACHABLE();
             break;
     }
 }
 
-template <typename ParamType>
-void SetSamplerParameterBase(Sampler *sampler, GLenum pname, const ParamType *params)
+template <bool isPureInteger, typename ParamType>
+void SetSamplerParameterBase(Context *context,
+                             Sampler *sampler,
+                             GLenum pname,
+                             const ParamType *params)
 {
     switch (pname)
     {
         case GL_TEXTURE_WRAP_S:
-            sampler->setWrapS(ConvertToGLenum(pname, params[0]));
+            sampler->setWrapS(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_WRAP_T:
-            sampler->setWrapT(ConvertToGLenum(pname, params[0]));
+            sampler->setWrapT(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_WRAP_R:
-            sampler->setWrapR(ConvertToGLenum(pname, params[0]));
+            sampler->setWrapR(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_MIN_FILTER:
-            sampler->setMinFilter(ConvertToGLenum(pname, params[0]));
+            sampler->setMinFilter(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_MAG_FILTER:
-            sampler->setMagFilter(ConvertToGLenum(pname, params[0]));
+            sampler->setMagFilter(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_MAX_ANISOTROPY_EXT:
-            sampler->setMaxAnisotropy(CastQueryValueTo<GLfloat>(pname, params[0]));
+            sampler->setMaxAnisotropy(context, CastQueryValueTo<GLfloat>(pname, params[0]));
             break;
         case GL_TEXTURE_COMPARE_MODE:
-            sampler->setCompareMode(ConvertToGLenum(pname, params[0]));
+            sampler->setCompareMode(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_COMPARE_FUNC:
-            sampler->setCompareFunc(ConvertToGLenum(pname, params[0]));
+            sampler->setCompareFunc(context, ConvertToGLenum(pname, params[0]));
             break;
         case GL_TEXTURE_MIN_LOD:
-            sampler->setMinLod(CastQueryValueTo<GLfloat>(pname, params[0]));
+            sampler->setMinLod(context, CastQueryValueTo<GLfloat>(pname, params[0]));
             break;
         case GL_TEXTURE_MAX_LOD:
-            sampler->setMaxLod(CastQueryValueTo<GLfloat>(pname, params[0]));
+            sampler->setMaxLod(context, CastQueryValueTo<GLfloat>(pname, params[0]));
             break;
         case GL_TEXTURE_SRGB_DECODE_EXT:
-            sampler->setSRGBDecode(ConvertToGLenum(pname, params[0]));
+            sampler->setSRGBDecode(context, ConvertToGLenum(pname, params[0]));
+            break;
+        case GL_TEXTURE_BORDER_COLOR:
+            sampler->setBorderColor(context, ConvertToColor<isPureInteger>(params));
             break;
         default:
             UNREACHABLE();
             break;
     }
+
+    sampler->onStateChange(angle::SubjectMessage::ContentsChanged);
 }
 
 // Warning: you should ensure binding really matches attrib.bindingIndex before using this function.
@@ -396,25 +531,27 @@ void QueryVertexAttribBase(const VertexAttribute &attrib,
             *params = CastFromStateValue<ParamType>(pname, static_cast<GLint>(attrib.enabled));
             break;
         case GL_VERTEX_ATTRIB_ARRAY_SIZE:
-            *params = CastFromGLintStateValue<ParamType>(pname, attrib.size);
+            *params = CastFromGLintStateValue<ParamType>(pname, attrib.format->channelCount);
             break;
         case GL_VERTEX_ATTRIB_ARRAY_STRIDE:
             *params = CastFromGLintStateValue<ParamType>(pname, attrib.vertexAttribArrayStride);
             break;
         case GL_VERTEX_ATTRIB_ARRAY_TYPE:
-            *params = CastFromGLintStateValue<ParamType>(pname, attrib.type);
+            *params = CastFromGLintStateValue<ParamType>(
+                pname, gl::ToGLenum(attrib.format->vertexAttribType));
             break;
         case GL_VERTEX_ATTRIB_ARRAY_NORMALIZED:
-            *params = CastFromStateValue<ParamType>(pname, static_cast<GLint>(attrib.normalized));
+            *params =
+                CastFromStateValue<ParamType>(pname, static_cast<GLint>(attrib.format->isNorm()));
             break;
         case GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING:
-            *params = CastFromGLintStateValue<ParamType>(pname, binding.getBuffer().id());
+            *params = CastFromGLintStateValue<ParamType>(pname, binding.getBuffer().id().value);
             break;
         case GL_VERTEX_ATTRIB_ARRAY_DIVISOR:
-            *params = CastFromGLintStateValue<ParamType>(pname, binding.getDivisor());
+            *params = CastFromStateValue<ParamType>(pname, binding.getDivisor());
             break;
         case GL_VERTEX_ATTRIB_ARRAY_INTEGER:
-            *params = CastFromGLintStateValue<ParamType>(pname, attrib.pureInteger);
+            *params = CastFromGLintStateValue<ParamType>(pname, attrib.format->isPureInt());
             break;
         case GL_VERTEX_ATTRIB_BINDING:
             *params = CastFromGLintStateValue<ParamType>(pname, attrib.bindingIndex);
@@ -456,6 +593,9 @@ void QueryBufferParameterBase(const Buffer *buffer, GLenum pname, ParamType *par
         case GL_BUFFER_MAP_LENGTH:
             *params = CastFromStateValue<ParamType>(pname, buffer->getMapLength());
             break;
+        case GL_MEMORY_SIZE_ANGLE:
+            *params = CastFromStateValue<ParamType>(pname, buffer->getMemorySize());
+            break;
         default:
             UNREACHABLE();
             break;
@@ -486,24 +626,32 @@ GLint GetCommonVariableProperty(const sh::ShaderVariable &var, GLenum prop)
 
 GLint GetInputResourceProperty(const Program *program, GLuint index, GLenum prop)
 {
-    const auto &attribute = program->getInputResource(index);
+    const sh::ShaderVariable &variable = program->getInputResource(index);
+
     switch (prop)
     {
         case GL_TYPE:
         case GL_ARRAY_SIZE:
+            return GetCommonVariableProperty(variable, prop);
+
         case GL_NAME_LENGTH:
-            return GetCommonVariableProperty(attribute, prop);
+            return clampCast<GLint>(program->getInputResourceName(index).size() + 1u);
 
         case GL_LOCATION:
-            return program->getAttributeLocation(attribute.name);
+            return variable.location;
 
+        // The query is targeted at the set of active input variables used by the first shader stage
+        // of program. If program contains multiple shader stages then input variables from any
+        // stage other than the first will not be enumerated. Since we found the variable to get
+        // this far, we know it exists in the first attached shader stage.
         case GL_REFERENCED_BY_VERTEX_SHADER:
-            return 1;
-
+            return program->getState().getFirstAttachedShaderStageType() == ShaderType::Vertex;
         case GL_REFERENCED_BY_FRAGMENT_SHADER:
+            return program->getState().getFirstAttachedShaderStageType() == ShaderType::Fragment;
         case GL_REFERENCED_BY_COMPUTE_SHADER:
+            return program->getState().getFirstAttachedShaderStageType() == ShaderType::Compute;
         case GL_REFERENCED_BY_GEOMETRY_SHADER_EXT:
-            return 0;
+            return program->getState().getFirstAttachedShaderStageType() == ShaderType::Geometry;
 
         default:
             UNREACHABLE();
@@ -513,24 +661,40 @@ GLint GetInputResourceProperty(const Program *program, GLuint index, GLenum prop
 
 GLint GetOutputResourceProperty(const Program *program, GLuint index, const GLenum prop)
 {
-    const auto &outputVariable = program->getOutputResource(index);
+    const sh::ShaderVariable &outputVariable = program->getOutputResource(index);
+
     switch (prop)
     {
         case GL_TYPE:
         case GL_ARRAY_SIZE:
-        case GL_NAME_LENGTH:
             return GetCommonVariableProperty(outputVariable, prop);
 
+        case GL_NAME_LENGTH:
+            return clampCast<GLint>(program->getOutputResourceName(index).size() + 1u);
+
         case GL_LOCATION:
-            return program->getFragDataLocation(outputVariable.name);
+            return outputVariable.location;
 
-        case GL_REFERENCED_BY_FRAGMENT_SHADER:
-            return 1;
+        case GL_LOCATION_INDEX_EXT:
+            // EXT_blend_func_extended
+            if (program->getState().getLastAttachedShaderStageType() == gl::ShaderType::Fragment)
+            {
+                return program->getFragDataIndex(outputVariable.name);
+            }
+            return GL_INVALID_INDEX;
 
+        // The set of active user-defined outputs from the final shader stage in this program. If
+        // the final stage is a Fragment Shader, then this represents the fragment outputs that get
+        // written to individual color buffers. If the program only contains a Compute Shader, then
+        // there are no user-defined outputs.
         case GL_REFERENCED_BY_VERTEX_SHADER:
+            return program->getState().getLastAttachedShaderStageType() == ShaderType::Vertex;
+        case GL_REFERENCED_BY_FRAGMENT_SHADER:
+            return program->getState().getLastAttachedShaderStageType() == ShaderType::Fragment;
         case GL_REFERENCED_BY_COMPUTE_SHADER:
+            return program->getState().getLastAttachedShaderStageType() == ShaderType::Compute;
         case GL_REFERENCED_BY_GEOMETRY_SHADER_EXT:
-            return 0;
+            return program->getState().getLastAttachedShaderStageType() == ShaderType::Geometry;
 
         default:
             UNREACHABLE();
@@ -565,7 +729,7 @@ GLint QueryProgramInterfaceActiveResources(const Program *program, GLenum progra
     switch (programInterface)
     {
         case GL_PROGRAM_INPUT:
-            return clampCast<GLint>(program->getAttributes().size());
+            return clampCast<GLint>(program->getState().getProgramInputs().size());
 
         case GL_PROGRAM_OUTPUT:
             return clampCast<GLint>(program->getState().getOutputVariables().size());
@@ -611,12 +775,11 @@ GLint QueryProgramInterfaceMaxNameLength(const Program *program, GLenum programI
     switch (programInterface)
     {
         case GL_PROGRAM_INPUT:
-            maxNameLength = FindMaxSize(program->getAttributes(), &sh::Attribute::name);
+            maxNameLength = program->getInputResourceMaxNameSize();
             break;
 
         case GL_PROGRAM_OUTPUT:
-            maxNameLength =
-                FindMaxSize(program->getState().getOutputVariables(), &sh::OutputVariable::name);
+            maxNameLength = program->getOutputResourceMaxNameSize();
             break;
 
         case GL_UNIFORM:
@@ -838,15 +1001,14 @@ bool IsTextureEnvEnumParameter(TextureEnvParameter pname)
         case TextureEnvParameter::Op0Alpha:
         case TextureEnvParameter::Op1Alpha:
         case TextureEnvParameter::Op2Alpha:
-        case TextureEnvParameter::RgbScale:
-        case TextureEnvParameter::AlphaScale:
+        case TextureEnvParameter::PointCoordReplace:
             return true;
         default:
             return false;
     }
 }
 
-}  // anonymous namespace
+}  // namespace
 
 void QueryFramebufferAttachmentParameteriv(const Context *context,
                                            const Framebuffer *framebuffer,
@@ -950,31 +1112,27 @@ void QueryFramebufferAttachmentParameteriv(const Context *context,
             *params = attachmentObject->layer();
             break;
 
-        case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_NUM_VIEWS_ANGLE:
+        case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_NUM_VIEWS_OVR:
             *params = attachmentObject->getNumViews();
             break;
 
-        case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_MULTIVIEW_LAYOUT_ANGLE:
-            *params = static_cast<GLint>(attachmentObject->getMultiviewLayout());
-            break;
-
-        case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_BASE_VIEW_INDEX_ANGLE:
+        case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_BASE_VIEW_INDEX_OVR:
             *params = attachmentObject->getBaseViewIndex();
             break;
 
-        case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_VIEWPORT_OFFSETS_ANGLE:
-        {
-            const std::vector<Offset> &offsets = attachmentObject->getMultiviewViewportOffsets();
-            for (size_t i = 0u; i < offsets.size(); ++i)
-            {
-                params[i * 2u]      = offsets[i].x;
-                params[i * 2u + 1u] = offsets[i].y;
-            }
-        }
-        break;
-
         case GL_FRAMEBUFFER_ATTACHMENT_LAYERED_EXT:
             *params = attachmentObject->isLayered();
+            break;
+
+        case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_SAMPLES_EXT:
+            if (attachmentObject->type() == GL_TEXTURE)
+            {
+                *params = attachmentObject->getSamples();
+            }
+            else
+            {
+                *params = 0;
+            }
             break;
 
         default:
@@ -1007,9 +1165,9 @@ void QueryBufferPointerv(const Buffer *buffer, GLenum pname, void **params)
     }
 }
 
-void QueryProgramiv(const Context *context, const Program *program, GLenum pname, GLint *params)
+void QueryProgramiv(Context *context, const Program *program, GLenum pname, GLint *params)
 {
-    ASSERT(program != nullptr);
+    ASSERT(program != nullptr || pname == GL_COMPLETION_STATUS_KHR);
 
     switch (pname)
     {
@@ -1018,6 +1176,16 @@ void QueryProgramiv(const Context *context, const Program *program, GLenum pname
             return;
         case GL_LINK_STATUS:
             *params = program->isLinked();
+            return;
+        case GL_COMPLETION_STATUS_KHR:
+            if (context->isContextLost())
+            {
+                *params = GL_TRUE;
+            }
+            else
+            {
+                *params = program->isLinking() ? GL_FALSE : GL_TRUE;
+            }
             return;
         case GL_VALIDATE_STATUS:
             *params = program->isValidated();
@@ -1041,7 +1209,9 @@ void QueryProgramiv(const Context *context, const Program *program, GLenum pname
             *params = program->getActiveUniformMaxLength();
             return;
         case GL_PROGRAM_BINARY_LENGTH_OES:
-            *params = program->getBinaryLength(context);
+            *params = context->getCaps().programBinaryFormats.empty()
+                          ? 0
+                          : program->getBinaryLength(context);
             return;
         case GL_ACTIVE_UNIFORM_BLOCKS:
             *params = program->getActiveUniformBlockCount();
@@ -1141,6 +1311,15 @@ void QueryRenderbufferiv(const Context *context,
         case GL_RENDERBUFFER_SAMPLES_ANGLE:
             *params = renderbuffer->getSamples();
             break;
+        case GL_MEMORY_SIZE_ANGLE:
+            *params = renderbuffer->getMemorySize();
+            break;
+        case GL_IMPLEMENTATION_COLOR_READ_FORMAT:
+            *params = static_cast<GLint>(renderbuffer->getImplementationColorReadFormat(context));
+            break;
+        case GL_IMPLEMENTATION_COLOR_READ_TYPE:
+            *params = static_cast<GLint>(renderbuffer->getImplementationColorReadType(context));
+            break;
         default:
             UNREACHABLE();
             break;
@@ -1149,7 +1328,7 @@ void QueryRenderbufferiv(const Context *context,
 
 void QueryShaderiv(const Context *context, Shader *shader, GLenum pname, GLint *params)
 {
-    ASSERT(shader != nullptr);
+    ASSERT(shader != nullptr || pname == GL_COMPLETION_STATUS_KHR);
 
     switch (pname)
     {
@@ -1160,16 +1339,26 @@ void QueryShaderiv(const Context *context, Shader *shader, GLenum pname, GLint *
             *params = shader->isFlaggedForDeletion();
             return;
         case GL_COMPILE_STATUS:
-            *params = shader->isCompiled(context) ? GL_TRUE : GL_FALSE;
+            *params = shader->isCompiled() ? GL_TRUE : GL_FALSE;
+            return;
+        case GL_COMPLETION_STATUS_KHR:
+            if (context->isContextLost())
+            {
+                *params = GL_TRUE;
+            }
+            else
+            {
+                *params = shader->isCompleted() ? GL_TRUE : GL_FALSE;
+            }
             return;
         case GL_INFO_LOG_LENGTH:
-            *params = shader->getInfoLogLength(context);
+            *params = shader->getInfoLogLength();
             return;
         case GL_SHADER_SOURCE_LENGTH:
             *params = shader->getSourceLength();
             return;
         case GL_TRANSLATED_SHADER_SOURCE_LENGTH_ANGLE:
-            *params = shader->getTranslatedSourceWithDebugInfoLength(context);
+            *params = shader->getTranslatedSourceWithDebugInfoLength();
             return;
         default:
             UNREACHABLE();
@@ -1195,24 +1384,56 @@ void QueryTexLevelParameteriv(const Texture *texture,
     QueryTexLevelParameterBase(texture, target, level, pname, params);
 }
 
-void QueryTexParameterfv(const Texture *texture, GLenum pname, GLfloat *params)
+void QueryTexParameterfv(const Context *context,
+                         const Texture *texture,
+                         GLenum pname,
+                         GLfloat *params)
 {
-    QueryTexParameterBase(texture, pname, params);
+    QueryTexParameterBase<false>(context, texture, pname, params);
 }
 
-void QueryTexParameteriv(const Texture *texture, GLenum pname, GLint *params)
+void QueryTexParameteriv(const Context *context,
+                         const Texture *texture,
+                         GLenum pname,
+                         GLint *params)
 {
-    QueryTexParameterBase(texture, pname, params);
+    QueryTexParameterBase<false>(context, texture, pname, params);
+}
+
+void QueryTexParameterIiv(const Context *context,
+                          const Texture *texture,
+                          GLenum pname,
+                          GLint *params)
+{
+    QueryTexParameterBase<true>(context, texture, pname, params);
+}
+
+void QueryTexParameterIuiv(const Context *context,
+                           const Texture *texture,
+                           GLenum pname,
+                           GLuint *params)
+{
+    QueryTexParameterBase<true>(context, texture, pname, params);
 }
 
 void QuerySamplerParameterfv(const Sampler *sampler, GLenum pname, GLfloat *params)
 {
-    QuerySamplerParameterBase(sampler, pname, params);
+    QuerySamplerParameterBase<false>(sampler, pname, params);
 }
 
 void QuerySamplerParameteriv(const Sampler *sampler, GLenum pname, GLint *params)
 {
-    QuerySamplerParameterBase(sampler, pname, params);
+    QuerySamplerParameterBase<false>(sampler, pname, params);
+}
+
+void QuerySamplerParameterIiv(const Sampler *sampler, GLenum pname, GLint *params)
+{
+    QuerySamplerParameterBase<true>(sampler, pname, params);
+}
+
+void QuerySamplerParameterIuiv(const Sampler *sampler, GLenum pname, GLuint *params)
+{
+    QuerySamplerParameterBase<true>(sampler, pname, params);
 }
 
 void QueryVertexAttribfv(const VertexAttribute &attrib,
@@ -1221,7 +1442,7 @@ void QueryVertexAttribfv(const VertexAttribute &attrib,
                          GLenum pname,
                          GLfloat *params)
 {
-    QueryVertexAttribBase(attrib, binding, currentValueData.FloatValues, pname, params);
+    QueryVertexAttribBase(attrib, binding, currentValueData.Values.FloatValues, pname, params);
 }
 
 void QueryVertexAttribiv(const VertexAttribute &attrib,
@@ -1230,7 +1451,7 @@ void QueryVertexAttribiv(const VertexAttribute &attrib,
                          GLenum pname,
                          GLint *params)
 {
-    QueryVertexAttribBase(attrib, binding, currentValueData.FloatValues, pname, params);
+    QueryVertexAttribBase(attrib, binding, currentValueData.Values.FloatValues, pname, params);
 }
 
 void QueryVertexAttribPointerv(const VertexAttribute &attrib, GLenum pname, void **pointer)
@@ -1253,7 +1474,7 @@ void QueryVertexAttribIiv(const VertexAttribute &attrib,
                           GLenum pname,
                           GLint *params)
 {
-    QueryVertexAttribBase(attrib, binding, currentValueData.IntValues, pname, params);
+    QueryVertexAttribBase(attrib, binding, currentValueData.Values.IntValues, pname, params);
 }
 
 void QueryVertexAttribIuiv(const VertexAttribute &attrib,
@@ -1262,7 +1483,8 @@ void QueryVertexAttribIuiv(const VertexAttribute &attrib,
                            GLenum pname,
                            GLuint *params)
 {
-    QueryVertexAttribBase(attrib, binding, currentValueData.UnsignedIntValues, pname, params);
+    QueryVertexAttribBase(attrib, binding, currentValueData.Values.UnsignedIntValues, pname,
+                          params);
 }
 
 void QueryActiveUniformBlockiv(const Program *program,
@@ -1330,14 +1552,14 @@ void QueryFramebufferParameteriv(const Framebuffer *framebuffer, GLenum pname, G
     }
 }
 
-Error QuerySynciv(const Context *context,
-                  const Sync *sync,
-                  GLenum pname,
-                  GLsizei bufSize,
-                  GLsizei *length,
-                  GLint *values)
+angle::Result QuerySynciv(const Context *context,
+                          const Sync *sync,
+                          GLenum pname,
+                          GLsizei bufSize,
+                          GLsizei *length,
+                          GLint *values)
 {
-    ASSERT(sync);
+    ASSERT(sync != nullptr || pname == GL_SYNC_STATUS);
 
     // All queries return one value, exit early if the buffer can't fit anything.
     if (bufSize < 1)
@@ -1346,7 +1568,7 @@ Error QuerySynciv(const Context *context,
         {
             *length = 0;
         }
-        return NoError();
+        return angle::Result::Continue;
     }
 
     switch (pname)
@@ -1361,7 +1583,14 @@ Error QuerySynciv(const Context *context,
             *values = clampCast<GLint>(sync->getFlags());
             break;
         case GL_SYNC_STATUS:
-            ANGLE_TRY(sync->getStatus(context, values));
+            if (context->isContextLost())
+            {
+                *values = GL_SIGNALED;
+            }
+            else
+            {
+                ANGLE_TRY(sync->getStatus(context, values));
+            }
             break;
 
         default:
@@ -1374,66 +1603,89 @@ Error QuerySynciv(const Context *context,
         *length = 1;
     }
 
-    return NoError();
+    return angle::Result::Continue;
 }
 
 void SetTexParameterf(Context *context, Texture *texture, GLenum pname, GLfloat param)
 {
-    SetTexParameterBase(context, texture, pname, &param);
+    SetTexParameterBase<false>(context, texture, pname, &param);
 }
 
 void SetTexParameterfv(Context *context, Texture *texture, GLenum pname, const GLfloat *params)
 {
-    SetTexParameterBase(context, texture, pname, params);
+    SetTexParameterBase<false>(context, texture, pname, params);
 }
 
 void SetTexParameteri(Context *context, Texture *texture, GLenum pname, GLint param)
 {
-    SetTexParameterBase(context, texture, pname, &param);
+    SetTexParameterBase<false>(context, texture, pname, &param);
 }
 
 void SetTexParameteriv(Context *context, Texture *texture, GLenum pname, const GLint *params)
 {
-    SetTexParameterBase(context, texture, pname, params);
+    SetTexParameterBase<false>(context, texture, pname, params);
 }
 
-void SetSamplerParameterf(Sampler *sampler, GLenum pname, GLfloat param)
+void SetTexParameterIiv(Context *context, Texture *texture, GLenum pname, const GLint *params)
 {
-    SetSamplerParameterBase(sampler, pname, &param);
+    SetTexParameterBase<true>(context, texture, pname, params);
 }
 
-void SetSamplerParameterfv(Sampler *sampler, GLenum pname, const GLfloat *params)
+void SetTexParameterIuiv(Context *context, Texture *texture, GLenum pname, const GLuint *params)
 {
-    SetSamplerParameterBase(sampler, pname, params);
+    SetTexParameterBase<true>(context, texture, pname, params);
 }
 
-void SetSamplerParameteri(Sampler *sampler, GLenum pname, GLint param)
+void SetSamplerParameterf(Context *context, Sampler *sampler, GLenum pname, GLfloat param)
 {
-    SetSamplerParameterBase(sampler, pname, &param);
+    SetSamplerParameterBase<false>(context, sampler, pname, &param);
 }
 
-void SetSamplerParameteriv(Sampler *sampler, GLenum pname, const GLint *params)
+void SetSamplerParameterfv(Context *context, Sampler *sampler, GLenum pname, const GLfloat *params)
 {
-    SetSamplerParameterBase(sampler, pname, params);
+    SetSamplerParameterBase<false>(context, sampler, pname, params);
 }
 
-void SetFramebufferParameteri(Framebuffer *framebuffer, GLenum pname, GLint param)
+void SetSamplerParameteri(Context *context, Sampler *sampler, GLenum pname, GLint param)
+{
+    SetSamplerParameterBase<false>(context, sampler, pname, &param);
+}
+
+void SetSamplerParameteriv(Context *context, Sampler *sampler, GLenum pname, const GLint *params)
+{
+    SetSamplerParameterBase<false>(context, sampler, pname, params);
+}
+
+void SetSamplerParameterIiv(Context *context, Sampler *sampler, GLenum pname, const GLint *params)
+{
+    SetSamplerParameterBase<true>(context, sampler, pname, params);
+}
+
+void SetSamplerParameterIuiv(Context *context, Sampler *sampler, GLenum pname, const GLuint *params)
+{
+    SetSamplerParameterBase<true>(context, sampler, pname, params);
+}
+
+void SetFramebufferParameteri(const Context *context,
+                              Framebuffer *framebuffer,
+                              GLenum pname,
+                              GLint param)
 {
     ASSERT(framebuffer);
 
     switch (pname)
     {
         case GL_FRAMEBUFFER_DEFAULT_WIDTH:
-            framebuffer->setDefaultWidth(param);
+            framebuffer->setDefaultWidth(context, param);
             break;
         case GL_FRAMEBUFFER_DEFAULT_HEIGHT:
-            framebuffer->setDefaultHeight(param);
+            framebuffer->setDefaultHeight(context, param);
             break;
         case GL_FRAMEBUFFER_DEFAULT_SAMPLES:
-            framebuffer->setDefaultSamples(param);
+            framebuffer->setDefaultSamples(context, param);
             break;
         case GL_FRAMEBUFFER_DEFAULT_FIXED_SAMPLE_LOCATIONS:
-            framebuffer->setDefaultFixedSampleLocations(ConvertToBool(param));
+            framebuffer->setDefaultFixedSampleLocations(context, ConvertToBool(param));
             break;
         case GL_FRAMEBUFFER_DEFAULT_LAYERS_EXT:
             framebuffer->setDefaultLayers(param);
@@ -1514,7 +1766,7 @@ GLint GetUniformResourceProperty(const Program *program, GLuint index, const GLe
 
 GLint GetBufferVariableResourceProperty(const Program *program, GLuint index, const GLenum prop)
 {
-    const auto &bufferVariable = program->getBufferVariableByIndex(index);
+    const BufferVariable &bufferVariable = program->getBufferVariableByIndex(index);
     switch (prop)
     {
         case GL_TYPE:
@@ -1643,10 +1895,10 @@ GLint QueryProgramResourceLocation(const Program *program,
     switch (programInterface)
     {
         case GL_PROGRAM_INPUT:
-            return program->getAttributeLocation(name);
+            return program->getInputResourceLocation(name);
 
         case GL_PROGRAM_OUTPUT:
-            return program->getFragDataLocation(name);
+            return program->getOutputResourceLocation(name);
 
         case GL_UNIFORM:
             return program->getUniformLocation(name);
@@ -1668,10 +1920,17 @@ void QueryProgramResourceiv(const Program *program,
 {
     if (!program->isLinked())
     {
-        if (length != nullptr)
-        {
-            *length = 0;
-        }
+        return;
+    }
+
+    if (length != nullptr)
+    {
+        *length = 0;
+    }
+
+    if (bufSize == 0)
+    {
+        // No room to write the results
         return;
     }
 
@@ -2164,6 +2423,7 @@ unsigned int GetTextureEnvParameterCount(TextureEnvParameter pname)
         case TextureEnvParameter::Op2Alpha:
         case TextureEnvParameter::RgbScale:
         case TextureEnvParameter::AlphaScale:
+        case TextureEnvParameter::PointCoordReplace:
             return 1;
         case TextureEnvParameter::Color:
             return 4;
@@ -2210,14 +2470,13 @@ void ConvertTextureEnvFromFixed(TextureEnvParameter pname, const GLfixed *input,
     {
         case TextureEnvParameter::RgbScale:
         case TextureEnvParameter::AlphaScale:
-            output[0] = FixedToFloat(input[0]);
+            output[0] = ConvertFixedToFloat(input[0]);
             break;
         case TextureEnvParameter::Color:
             for (int i = 0; i < 4; i++)
             {
-                output[i] = FixedToFloat(input[i]);
+                output[i] = ConvertFixedToFloat(input[i]);
             }
-            break;
             break;
         default:
             UNREACHABLE();
@@ -2263,12 +2522,12 @@ void ConvertTextureEnvToFixed(TextureEnvParameter pname, const GLfloat *input, G
     {
         case TextureEnvParameter::RgbScale:
         case TextureEnvParameter::AlphaScale:
-            output[0] = FloatToFixed(input[0]);
+            output[0] = ConvertFloatToFixed(input[0]);
             break;
         case TextureEnvParameter::Color:
             for (int i = 0; i < 4; i++)
             {
-                output[i] = FloatToFixed(input[i]);
+                output[i] = ConvertFloatToFixed(input[i]);
             }
             break;
         default:
@@ -2541,6 +2800,7 @@ unsigned int GetTexParameterCount(GLenum pname)
     switch (pname)
     {
         case GL_TEXTURE_CROP_RECT_OES:
+        case GL_TEXTURE_BORDER_COLOR:
             return 4;
         case GL_TEXTURE_MAG_FILTER:
         case GL_TEXTURE_MIN_FILTER:
@@ -2563,12 +2823,776 @@ unsigned int GetTexParameterCount(GLenum pname)
         case GL_TEXTURE_COMPARE_FUNC:
         case GL_TEXTURE_SRGB_DECODE_EXT:
         case GL_DEPTH_STENCIL_TEXTURE_MODE:
+        case GL_TEXTURE_NATIVE_ID_ANGLE:
             return 1;
         default:
             return 0;
     }
 }
 
+bool GetQueryParameterInfo(const State &glState,
+                           GLenum pname,
+                           GLenum *type,
+                           unsigned int *numParams)
+{
+    const Caps &caps             = glState.getCaps();
+    const Extensions &extensions = glState.getExtensions();
+    GLint clientMajorVersion     = glState.getClientMajorVersion();
+
+    // Please note: the query type returned for DEPTH_CLEAR_VALUE in this implementation
+    // is FLOAT rather than INT, as would be suggested by the GL ES 2.0 spec. This is due
+    // to the fact that it is stored internally as a float, and so would require conversion
+    // if returned from Context::getIntegerv. Since this conversion is already implemented
+    // in the case that one calls glGetIntegerv to retrieve a float-typed state variable, we
+    // place DEPTH_CLEAR_VALUE with the floats. This should make no difference to the calling
+    // application.
+    switch (pname)
+    {
+        case GL_COMPRESSED_TEXTURE_FORMATS:
+        {
+            *type      = GL_INT;
+            *numParams = static_cast<unsigned int>(caps.compressedTextureFormats.size());
+            return true;
+        }
+        case GL_SHADER_BINARY_FORMATS:
+        {
+            *type      = GL_INT;
+            *numParams = static_cast<unsigned int>(caps.shaderBinaryFormats.size());
+            return true;
+        }
+
+        case GL_MAX_VERTEX_ATTRIBS:
+        case GL_MAX_VERTEX_UNIFORM_VECTORS:
+        case GL_MAX_VARYING_VECTORS:
+        case GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS:
+        case GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS:
+        case GL_MAX_TEXTURE_IMAGE_UNITS:
+        case GL_MAX_FRAGMENT_UNIFORM_VECTORS:
+        case GL_MAX_RENDERBUFFER_SIZE:
+        case GL_NUM_SHADER_BINARY_FORMATS:
+        case GL_NUM_COMPRESSED_TEXTURE_FORMATS:
+        case GL_ARRAY_BUFFER_BINDING:
+        case GL_FRAMEBUFFER_BINDING:  // GL_FRAMEBUFFER_BINDING now equivalent to
+                                      // GL_DRAW_FRAMEBUFFER_BINDING_ANGLE
+        case GL_RENDERBUFFER_BINDING:
+        case GL_CURRENT_PROGRAM:
+        case GL_PACK_ALIGNMENT:
+        case GL_UNPACK_ALIGNMENT:
+        case GL_GENERATE_MIPMAP_HINT:
+        case GL_RED_BITS:
+        case GL_GREEN_BITS:
+        case GL_BLUE_BITS:
+        case GL_ALPHA_BITS:
+        case GL_DEPTH_BITS:
+        case GL_STENCIL_BITS:
+        case GL_ELEMENT_ARRAY_BUFFER_BINDING:
+        case GL_CULL_FACE_MODE:
+        case GL_FRONT_FACE:
+        case GL_ACTIVE_TEXTURE:
+        case GL_STENCIL_FUNC:
+        case GL_STENCIL_VALUE_MASK:
+        case GL_STENCIL_REF:
+        case GL_STENCIL_FAIL:
+        case GL_STENCIL_PASS_DEPTH_FAIL:
+        case GL_STENCIL_PASS_DEPTH_PASS:
+        case GL_STENCIL_BACK_FUNC:
+        case GL_STENCIL_BACK_VALUE_MASK:
+        case GL_STENCIL_BACK_REF:
+        case GL_STENCIL_BACK_FAIL:
+        case GL_STENCIL_BACK_PASS_DEPTH_FAIL:
+        case GL_STENCIL_BACK_PASS_DEPTH_PASS:
+        case GL_DEPTH_FUNC:
+        case GL_BLEND_SRC_RGB:
+        case GL_BLEND_SRC_ALPHA:
+        case GL_BLEND_DST_RGB:
+        case GL_BLEND_DST_ALPHA:
+        case GL_BLEND_EQUATION_RGB:
+        case GL_BLEND_EQUATION_ALPHA:
+        case GL_STENCIL_WRITEMASK:
+        case GL_STENCIL_BACK_WRITEMASK:
+        case GL_STENCIL_CLEAR_VALUE:
+        case GL_SUBPIXEL_BITS:
+        case GL_MAX_TEXTURE_SIZE:
+        case GL_MAX_CUBE_MAP_TEXTURE_SIZE:
+        case GL_SAMPLE_BUFFERS:
+        case GL_SAMPLES:
+        case GL_IMPLEMENTATION_COLOR_READ_TYPE:
+        case GL_IMPLEMENTATION_COLOR_READ_FORMAT:
+        case GL_TEXTURE_BINDING_2D:
+        case GL_TEXTURE_BINDING_CUBE_MAP:
+        case GL_RESET_NOTIFICATION_STRATEGY_EXT:
+        {
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        }
+        case GL_PACK_REVERSE_ROW_ORDER_ANGLE:
+        {
+            if (!extensions.packReverseRowOrder)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        }
+        case GL_MAX_RECTANGLE_TEXTURE_SIZE_ANGLE:
+        case GL_TEXTURE_BINDING_RECTANGLE_ANGLE:
+        {
+            if (!extensions.textureRectangle)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        }
+        case GL_MAX_DRAW_BUFFERS_EXT:
+        case GL_MAX_COLOR_ATTACHMENTS_EXT:
+        {
+            if ((clientMajorVersion < 3) && !extensions.drawBuffers)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        }
+        case GL_MAX_VIEWPORT_DIMS:
+        {
+            *type      = GL_INT;
+            *numParams = 2;
+            return true;
+        }
+        case GL_VIEWPORT:
+        case GL_SCISSOR_BOX:
+        {
+            *type      = GL_INT;
+            *numParams = 4;
+            return true;
+        }
+        case GL_SHADER_COMPILER:
+        case GL_SAMPLE_COVERAGE_INVERT:
+        case GL_DEPTH_WRITEMASK:
+        case GL_CULL_FACE:                 // CULL_FACE through DITHER are natural to IsEnabled,
+        case GL_POLYGON_OFFSET_FILL:       // but can be retrieved through the Get{Type}v queries.
+        case GL_SAMPLE_ALPHA_TO_COVERAGE:  // For this purpose, they are treated here as
+                                           // bool-natural
+        case GL_SAMPLE_COVERAGE:
+        case GL_SCISSOR_TEST:
+        case GL_STENCIL_TEST:
+        case GL_DEPTH_TEST:
+        case GL_BLEND:
+        case GL_DITHER:
+        case GL_CONTEXT_ROBUST_ACCESS_EXT:
+        {
+            *type      = GL_BOOL;
+            *numParams = 1;
+            return true;
+        }
+        case GL_COLOR_WRITEMASK:
+        {
+            *type      = GL_BOOL;
+            *numParams = 4;
+            return true;
+        }
+        case GL_POLYGON_OFFSET_FACTOR:
+        case GL_POLYGON_OFFSET_UNITS:
+        case GL_SAMPLE_COVERAGE_VALUE:
+        case GL_DEPTH_CLEAR_VALUE:
+        case GL_LINE_WIDTH:
+        {
+            *type      = GL_FLOAT;
+            *numParams = 1;
+            return true;
+        }
+        case GL_ALIASED_LINE_WIDTH_RANGE:
+        case GL_ALIASED_POINT_SIZE_RANGE:
+        case GL_DEPTH_RANGE:
+        {
+            *type      = GL_FLOAT;
+            *numParams = 2;
+            return true;
+        }
+        case GL_COLOR_CLEAR_VALUE:
+        case GL_BLEND_COLOR:
+        {
+            *type      = GL_FLOAT;
+            *numParams = 4;
+            return true;
+        }
+        case GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT:
+            if (!extensions.textureFilterAnisotropic)
+            {
+                return false;
+            }
+            *type      = GL_FLOAT;
+            *numParams = 1;
+            return true;
+        case GL_TIMESTAMP_EXT:
+            if (!extensions.disjointTimerQuery)
+            {
+                return false;
+            }
+            *type      = GL_INT_64_ANGLEX;
+            *numParams = 1;
+            return true;
+        case GL_GPU_DISJOINT_EXT:
+            if (!extensions.disjointTimerQuery)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        case GL_COVERAGE_MODULATION_CHROMIUM:
+            if (!extensions.framebufferMixedSamples)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        case GL_TEXTURE_BINDING_EXTERNAL_OES:
+            if (!extensions.eglStreamConsumerExternal && !extensions.eglImageExternal)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+    }
+
+    if (glState.getClientType() == EGL_OPENGL_API)
+    {
+        switch (pname)
+        {
+            case GL_CONTEXT_FLAGS:
+            case GL_CONTEXT_PROFILE_MASK:
+            {
+                *type      = GL_INT;
+                *numParams = 1;
+                return true;
+            }
+        }
+    }
+
+    if (extensions.debug)
+    {
+        switch (pname)
+        {
+            case GL_DEBUG_LOGGED_MESSAGES:
+            case GL_DEBUG_NEXT_LOGGED_MESSAGE_LENGTH:
+            case GL_DEBUG_GROUP_STACK_DEPTH:
+            case GL_MAX_DEBUG_MESSAGE_LENGTH:
+            case GL_MAX_DEBUG_LOGGED_MESSAGES:
+            case GL_MAX_DEBUG_GROUP_STACK_DEPTH:
+            case GL_MAX_LABEL_LENGTH:
+                *type      = GL_INT;
+                *numParams = 1;
+                return true;
+
+            case GL_DEBUG_OUTPUT_SYNCHRONOUS:
+            case GL_DEBUG_OUTPUT:
+                *type      = GL_BOOL;
+                *numParams = 1;
+                return true;
+        }
+    }
+
+    if (extensions.multisampleCompatibility)
+    {
+        switch (pname)
+        {
+            case GL_MULTISAMPLE_EXT:
+            case GL_SAMPLE_ALPHA_TO_ONE_EXT:
+                *type      = GL_BOOL;
+                *numParams = 1;
+                return true;
+        }
+    }
+
+    if (extensions.pathRendering)
+    {
+        switch (pname)
+        {
+            case GL_PATH_MODELVIEW_MATRIX_CHROMIUM:
+            case GL_PATH_PROJECTION_MATRIX_CHROMIUM:
+                *type      = GL_FLOAT;
+                *numParams = 16;
+                return true;
+        }
+    }
+
+    if (extensions.bindGeneratesResource)
+    {
+        switch (pname)
+        {
+            case GL_BIND_GENERATES_RESOURCE_CHROMIUM:
+                *type      = GL_BOOL;
+                *numParams = 1;
+                return true;
+        }
+    }
+
+    if (extensions.clientArrays)
+    {
+        switch (pname)
+        {
+            case GL_CLIENT_ARRAYS_ANGLE:
+                *type      = GL_BOOL;
+                *numParams = 1;
+                return true;
+        }
+    }
+
+    if (extensions.sRGBWriteControl)
+    {
+        switch (pname)
+        {
+            case GL_FRAMEBUFFER_SRGB_EXT:
+                *type      = GL_BOOL;
+                *numParams = 1;
+                return true;
+        }
+    }
+
+    if (extensions.robustResourceInitialization && pname == GL_ROBUST_RESOURCE_INITIALIZATION_ANGLE)
+    {
+        *type      = GL_BOOL;
+        *numParams = 1;
+        return true;
+    }
+
+    if (extensions.programCacheControl && pname == GL_PROGRAM_CACHE_ENABLED_ANGLE)
+    {
+        *type      = GL_BOOL;
+        *numParams = 1;
+        return true;
+    }
+
+    if (extensions.parallelShaderCompile && pname == GL_MAX_SHADER_COMPILER_THREADS_KHR)
+    {
+        *type      = GL_INT;
+        *numParams = 1;
+        return true;
+    }
+
+    if (extensions.blendFuncExtended && pname == GL_MAX_DUAL_SOURCE_DRAW_BUFFERS_EXT)
+    {
+        *type      = GL_INT;
+        *numParams = 1;
+        return true;
+    }
+
+    // Check for ES3.0+ parameter names which are also exposed as ES2 extensions
+    switch (pname)
+    {
+        // GL_DRAW_FRAMEBUFFER_BINDING_ANGLE equivalent to FRAMEBUFFER_BINDING
+        case GL_READ_FRAMEBUFFER_BINDING_ANGLE:
+            if ((clientMajorVersion < 3) && !extensions.framebufferBlit)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+
+        case GL_NUM_PROGRAM_BINARY_FORMATS_OES:
+            if ((clientMajorVersion < 3) && !extensions.getProgramBinary)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+
+        case GL_PROGRAM_BINARY_FORMATS_OES:
+            if ((clientMajorVersion < 3) && !extensions.getProgramBinary)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = static_cast<unsigned int>(caps.programBinaryFormats.size());
+            return true;
+
+        case GL_PACK_ROW_LENGTH:
+        case GL_PACK_SKIP_ROWS:
+        case GL_PACK_SKIP_PIXELS:
+            if ((clientMajorVersion < 3) && !extensions.packSubimage)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        case GL_UNPACK_ROW_LENGTH:
+        case GL_UNPACK_SKIP_ROWS:
+        case GL_UNPACK_SKIP_PIXELS:
+            if ((clientMajorVersion < 3) && !extensions.unpackSubimage)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        case GL_VERTEX_ARRAY_BINDING:
+            if ((clientMajorVersion < 3) && !extensions.vertexArrayObject)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        case GL_PIXEL_PACK_BUFFER_BINDING:
+        case GL_PIXEL_UNPACK_BUFFER_BINDING:
+            if ((clientMajorVersion < 3) && !extensions.pixelBufferObject)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        case GL_MAX_SAMPLES:
+        {
+            static_assert(GL_MAX_SAMPLES_ANGLE == GL_MAX_SAMPLES,
+                          "GL_MAX_SAMPLES_ANGLE not equal to GL_MAX_SAMPLES");
+            if ((clientMajorVersion < 3) &&
+                !(extensions.framebufferMultisample || extensions.multisampledRenderToTexture))
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+
+            case GL_FRAGMENT_SHADER_DERIVATIVE_HINT:
+                if ((clientMajorVersion < 3) && !extensions.standardDerivatives)
+                {
+                    return false;
+                }
+                *type      = GL_INT;
+                *numParams = 1;
+                return true;
+        }
+        case GL_TEXTURE_BINDING_3D:
+            if ((clientMajorVersion < 3) && !extensions.texture3DOES)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        case GL_MAX_3D_TEXTURE_SIZE:
+            if ((clientMajorVersion < 3) && !extensions.texture3DOES)
+            {
+                return false;
+            }
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+    }
+
+    if (pname >= GL_DRAW_BUFFER0_EXT && pname <= GL_DRAW_BUFFER15_EXT)
+    {
+        if ((glState.getClientVersion() < Version(3, 0)) && !extensions.drawBuffers)
+        {
+            return false;
+        }
+        *type      = GL_INT;
+        *numParams = 1;
+        return true;
+    }
+
+    if ((extensions.multiview2 || extensions.multiview) && pname == GL_MAX_VIEWS_OVR)
+    {
+        *type      = GL_INT;
+        *numParams = 1;
+        return true;
+    }
+
+    if (glState.getClientVersion() < Version(2, 0))
+    {
+        switch (pname)
+        {
+            case GL_ALPHA_TEST_FUNC:
+            case GL_CLIENT_ACTIVE_TEXTURE:
+            case GL_MATRIX_MODE:
+            case GL_MAX_TEXTURE_UNITS:
+            case GL_MAX_MODELVIEW_STACK_DEPTH:
+            case GL_MAX_PROJECTION_STACK_DEPTH:
+            case GL_MAX_TEXTURE_STACK_DEPTH:
+            case GL_MAX_LIGHTS:
+            case GL_MAX_CLIP_PLANES:
+            case GL_VERTEX_ARRAY_STRIDE:
+            case GL_NORMAL_ARRAY_STRIDE:
+            case GL_COLOR_ARRAY_STRIDE:
+            case GL_TEXTURE_COORD_ARRAY_STRIDE:
+            case GL_VERTEX_ARRAY_SIZE:
+            case GL_COLOR_ARRAY_SIZE:
+            case GL_TEXTURE_COORD_ARRAY_SIZE:
+            case GL_VERTEX_ARRAY_TYPE:
+            case GL_NORMAL_ARRAY_TYPE:
+            case GL_COLOR_ARRAY_TYPE:
+            case GL_TEXTURE_COORD_ARRAY_TYPE:
+            case GL_VERTEX_ARRAY_BUFFER_BINDING:
+            case GL_NORMAL_ARRAY_BUFFER_BINDING:
+            case GL_COLOR_ARRAY_BUFFER_BINDING:
+            case GL_TEXTURE_COORD_ARRAY_BUFFER_BINDING:
+            case GL_POINT_SIZE_ARRAY_STRIDE_OES:
+            case GL_POINT_SIZE_ARRAY_TYPE_OES:
+            case GL_POINT_SIZE_ARRAY_BUFFER_BINDING_OES:
+            case GL_SHADE_MODEL:
+            case GL_MODELVIEW_STACK_DEPTH:
+            case GL_PROJECTION_STACK_DEPTH:
+            case GL_TEXTURE_STACK_DEPTH:
+            case GL_LOGIC_OP_MODE:
+            case GL_BLEND_SRC:
+            case GL_BLEND_DST:
+            case GL_PERSPECTIVE_CORRECTION_HINT:
+            case GL_POINT_SMOOTH_HINT:
+            case GL_LINE_SMOOTH_HINT:
+            case GL_FOG_HINT:
+                *type      = GL_INT;
+                *numParams = 1;
+                return true;
+            case GL_ALPHA_TEST_REF:
+            case GL_FOG_DENSITY:
+            case GL_FOG_START:
+            case GL_FOG_END:
+            case GL_FOG_MODE:
+            case GL_POINT_SIZE:
+            case GL_POINT_SIZE_MIN:
+            case GL_POINT_SIZE_MAX:
+            case GL_POINT_FADE_THRESHOLD_SIZE:
+                *type      = GL_FLOAT;
+                *numParams = 1;
+                return true;
+            case GL_SMOOTH_POINT_SIZE_RANGE:
+            case GL_SMOOTH_LINE_WIDTH_RANGE:
+                *type      = GL_FLOAT;
+                *numParams = 2;
+                return true;
+            case GL_CURRENT_COLOR:
+            case GL_CURRENT_TEXTURE_COORDS:
+            case GL_LIGHT_MODEL_AMBIENT:
+            case GL_FOG_COLOR:
+                *type      = GL_FLOAT;
+                *numParams = 4;
+                return true;
+            case GL_CURRENT_NORMAL:
+            case GL_POINT_DISTANCE_ATTENUATION:
+                *type      = GL_FLOAT;
+                *numParams = 3;
+                return true;
+            case GL_MODELVIEW_MATRIX:
+            case GL_PROJECTION_MATRIX:
+            case GL_TEXTURE_MATRIX:
+                *type      = GL_FLOAT;
+                *numParams = 16;
+                return true;
+            case GL_LIGHT_MODEL_TWO_SIDE:
+                *type      = GL_BOOL;
+                *numParams = 1;
+                return true;
+        }
+    }
+
+    if (glState.getClientVersion() < Version(3, 0))
+    {
+        return false;
+    }
+
+    // Check for ES3.0+ parameter names
+    switch (pname)
+    {
+        case GL_MAX_UNIFORM_BUFFER_BINDINGS:
+        case GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT:
+        case GL_UNIFORM_BUFFER_BINDING:
+        case GL_TRANSFORM_FEEDBACK_BINDING:
+        case GL_TRANSFORM_FEEDBACK_BUFFER_BINDING:
+        case GL_COPY_READ_BUFFER_BINDING:
+        case GL_COPY_WRITE_BUFFER_BINDING:
+        case GL_SAMPLER_BINDING:
+        case GL_READ_BUFFER:
+        case GL_TEXTURE_BINDING_3D:
+        case GL_TEXTURE_BINDING_2D_ARRAY:
+        case GL_MAX_ARRAY_TEXTURE_LAYERS:
+        case GL_MAX_VERTEX_UNIFORM_BLOCKS:
+        case GL_MAX_FRAGMENT_UNIFORM_BLOCKS:
+        case GL_MAX_COMBINED_UNIFORM_BLOCKS:
+        case GL_MAX_VERTEX_OUTPUT_COMPONENTS:
+        case GL_MAX_FRAGMENT_INPUT_COMPONENTS:
+        case GL_MAX_VARYING_COMPONENTS:
+        case GL_MAX_VERTEX_UNIFORM_COMPONENTS:
+        case GL_MAX_FRAGMENT_UNIFORM_COMPONENTS:
+        case GL_MIN_PROGRAM_TEXEL_OFFSET:
+        case GL_MAX_PROGRAM_TEXEL_OFFSET:
+        case GL_NUM_EXTENSIONS:
+        case GL_MAJOR_VERSION:
+        case GL_MINOR_VERSION:
+        case GL_MAX_ELEMENTS_INDICES:
+        case GL_MAX_ELEMENTS_VERTICES:
+        case GL_MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS:
+        case GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS:
+        case GL_MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS:
+        case GL_UNPACK_IMAGE_HEIGHT:
+        case GL_UNPACK_SKIP_IMAGES:
+        {
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        }
+
+        case GL_MAX_ELEMENT_INDEX:
+        case GL_MAX_UNIFORM_BLOCK_SIZE:
+        case GL_MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS:
+        case GL_MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS:
+        case GL_MAX_SERVER_WAIT_TIMEOUT:
+        {
+            *type      = GL_INT_64_ANGLEX;
+            *numParams = 1;
+            return true;
+        }
+
+        case GL_TRANSFORM_FEEDBACK_ACTIVE:
+        case GL_TRANSFORM_FEEDBACK_PAUSED:
+        case GL_PRIMITIVE_RESTART_FIXED_INDEX:
+        case GL_RASTERIZER_DISCARD:
+        {
+            *type      = GL_BOOL;
+            *numParams = 1;
+            return true;
+        }
+
+        case GL_MAX_TEXTURE_LOD_BIAS:
+        {
+            *type      = GL_FLOAT;
+            *numParams = 1;
+            return true;
+        }
+    }
+
+    if (extensions.requestExtension)
+    {
+        switch (pname)
+        {
+            case GL_NUM_REQUESTABLE_EXTENSIONS_ANGLE:
+                *type      = GL_INT;
+                *numParams = 1;
+                return true;
+        }
+    }
+
+    if (extensions.textureMultisample)
+    {
+        switch (pname)
+        {
+            case GL_MAX_COLOR_TEXTURE_SAMPLES_ANGLE:
+            case GL_MAX_INTEGER_SAMPLES_ANGLE:
+            case GL_MAX_DEPTH_TEXTURE_SAMPLES_ANGLE:
+            case GL_TEXTURE_BINDING_2D_MULTISAMPLE_ANGLE:
+            case GL_MAX_SAMPLE_MASK_WORDS:
+                *type      = GL_INT;
+                *numParams = 1;
+                return true;
+        }
+    }
+
+    if (glState.getClientVersion() < Version(3, 1))
+    {
+        return false;
+    }
+
+    switch (pname)
+    {
+        case GL_ATOMIC_COUNTER_BUFFER_BINDING:
+        case GL_DRAW_INDIRECT_BUFFER_BINDING:
+        case GL_DISPATCH_INDIRECT_BUFFER_BINDING:
+        case GL_MAX_FRAMEBUFFER_WIDTH:
+        case GL_MAX_FRAMEBUFFER_HEIGHT:
+        case GL_MAX_FRAMEBUFFER_SAMPLES:
+        case GL_MAX_SAMPLE_MASK_WORDS:
+        case GL_MAX_COLOR_TEXTURE_SAMPLES:
+        case GL_MAX_DEPTH_TEXTURE_SAMPLES:
+        case GL_MAX_INTEGER_SAMPLES:
+        case GL_MAX_VERTEX_ATTRIB_RELATIVE_OFFSET:
+        case GL_MAX_VERTEX_ATTRIB_BINDINGS:
+        case GL_MAX_VERTEX_ATTRIB_STRIDE:
+        case GL_MAX_VERTEX_ATOMIC_COUNTER_BUFFERS:
+        case GL_MAX_VERTEX_ATOMIC_COUNTERS:
+        case GL_MAX_VERTEX_IMAGE_UNIFORMS:
+        case GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS:
+        case GL_MAX_FRAGMENT_ATOMIC_COUNTER_BUFFERS:
+        case GL_MAX_FRAGMENT_ATOMIC_COUNTERS:
+        case GL_MAX_FRAGMENT_IMAGE_UNIFORMS:
+        case GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS:
+        case GL_MIN_PROGRAM_TEXTURE_GATHER_OFFSET:
+        case GL_MAX_PROGRAM_TEXTURE_GATHER_OFFSET:
+        case GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS:
+        case GL_MAX_COMPUTE_UNIFORM_BLOCKS:
+        case GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS:
+        case GL_MAX_COMPUTE_SHARED_MEMORY_SIZE:
+        case GL_MAX_COMPUTE_UNIFORM_COMPONENTS:
+        case GL_MAX_COMPUTE_ATOMIC_COUNTER_BUFFERS:
+        case GL_MAX_COMPUTE_ATOMIC_COUNTERS:
+        case GL_MAX_COMPUTE_IMAGE_UNIFORMS:
+        case GL_MAX_COMBINED_COMPUTE_UNIFORM_COMPONENTS:
+        case GL_MAX_COMPUTE_SHADER_STORAGE_BLOCKS:
+        case GL_MAX_COMBINED_SHADER_OUTPUT_RESOURCES:
+        case GL_MAX_UNIFORM_LOCATIONS:
+        case GL_MAX_ATOMIC_COUNTER_BUFFER_BINDINGS:
+        case GL_MAX_ATOMIC_COUNTER_BUFFER_SIZE:
+        case GL_MAX_COMBINED_ATOMIC_COUNTER_BUFFERS:
+        case GL_MAX_COMBINED_ATOMIC_COUNTERS:
+        case GL_MAX_IMAGE_UNITS:
+        case GL_MAX_COMBINED_IMAGE_UNIFORMS:
+        case GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS:
+        case GL_MAX_COMBINED_SHADER_STORAGE_BLOCKS:
+        case GL_SHADER_STORAGE_BUFFER_BINDING:
+        case GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT:
+        case GL_TEXTURE_BINDING_2D_MULTISAMPLE:
+        case GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY:
+            *type      = GL_INT;
+            *numParams = 1;
+            return true;
+        case GL_MAX_SHADER_STORAGE_BLOCK_SIZE:
+            *type      = GL_INT_64_ANGLEX;
+            *numParams = 1;
+            return true;
+        case GL_SAMPLE_MASK:
+            *type      = GL_BOOL;
+            *numParams = 1;
+            return true;
+    }
+
+    if (extensions.geometryShader)
+    {
+        switch (pname)
+        {
+            case GL_MAX_FRAMEBUFFER_LAYERS_EXT:
+            case GL_LAYER_PROVOKING_VERTEX_EXT:
+            case GL_MAX_GEOMETRY_UNIFORM_COMPONENTS_EXT:
+            case GL_MAX_GEOMETRY_UNIFORM_BLOCKS_EXT:
+            case GL_MAX_COMBINED_GEOMETRY_UNIFORM_COMPONENTS_EXT:
+            case GL_MAX_GEOMETRY_INPUT_COMPONENTS_EXT:
+            case GL_MAX_GEOMETRY_OUTPUT_COMPONENTS_EXT:
+            case GL_MAX_GEOMETRY_OUTPUT_VERTICES_EXT:
+            case GL_MAX_GEOMETRY_TOTAL_OUTPUT_COMPONENTS_EXT:
+            case GL_MAX_GEOMETRY_SHADER_INVOCATIONS_EXT:
+            case GL_MAX_GEOMETRY_TEXTURE_IMAGE_UNITS_EXT:
+            case GL_MAX_GEOMETRY_ATOMIC_COUNTER_BUFFERS_EXT:
+            case GL_MAX_GEOMETRY_ATOMIC_COUNTERS_EXT:
+            case GL_MAX_GEOMETRY_IMAGE_UNIFORMS_EXT:
+            case GL_MAX_GEOMETRY_SHADER_STORAGE_BLOCKS_EXT:
+                *type      = GL_INT;
+                *numParams = 1;
+                return true;
+        }
+    }
+
+    return false;
+}
 }  // namespace gl
 
 namespace egl
@@ -2685,6 +3709,12 @@ void QueryConfigAttrib(const Config *config, EGLint attribute, EGLint *value)
         case EGL_COLOR_COMPONENT_TYPE_EXT:
             *value = config->colorComponentType;
             break;
+        case EGL_RECORDABLE_ANDROID:
+            *value = config->recordable;
+            break;
+        case EGL_FRAMEBUFFER_TARGET_ANDROID:
+            *value = config->framebufferTarget;
+            break;
         default:
             UNREACHABLE();
             break;
@@ -2696,7 +3726,14 @@ void QueryContextAttrib(const gl::Context *context, EGLint attribute, EGLint *va
     switch (attribute)
     {
         case EGL_CONFIG_ID:
-            *value = context->getConfig()->configID;
+            if (context->getConfig() != EGL_NO_CONFIG_KHR)
+            {
+                *value = context->getConfig()->configID;
+            }
+            else
+            {
+                *value = 0;
+            }
             break;
         case EGL_CONTEXT_CLIENT_TYPE:
             *value = context->getClientType();
@@ -2809,6 +3846,9 @@ void QuerySurfaceAttrib(const Surface *surface, EGLint attribute, EGLint *value)
         case EGL_ROBUST_RESOURCE_INITIALIZATION_ANGLE:
             *value = surface->isRobustResourceInitEnabled();
             break;
+        case EGL_TIMESTAMPS_ANDROID:
+            *value = surface->isTimestampsEnabled();
+            break;
         default:
             UNREACHABLE();
             break;
@@ -2828,10 +3868,41 @@ void SetSurfaceAttrib(Surface *surface, EGLint attribute, EGLint value)
         case EGL_SWAP_BEHAVIOR:
             surface->setSwapBehavior(value);
             break;
+        case EGL_WIDTH:
+            surface->setFixedWidth(value);
+            break;
+        case EGL_HEIGHT:
+            surface->setFixedHeight(value);
+            break;
+        case EGL_TIMESTAMPS_ANDROID:
+            surface->setTimestampsEnabled(value != EGL_FALSE);
+            break;
         default:
             UNREACHABLE();
             break;
     }
 }
 
+Error GetSyncAttrib(Display *display, Sync *sync, EGLint attribute, EGLint *value)
+{
+    switch (attribute)
+    {
+        case EGL_SYNC_TYPE_KHR:
+            *value = sync->getType();
+            return NoError();
+
+        case EGL_SYNC_STATUS_KHR:
+            return sync->getStatus(display, value);
+
+        case EGL_SYNC_CONDITION_KHR:
+            *value = sync->getCondition();
+            return NoError();
+
+        default:
+            break;
+    }
+
+    UNREACHABLE();
+    return NoError();
+}
 }  // namespace egl

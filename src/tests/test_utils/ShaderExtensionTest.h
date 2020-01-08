@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2018 The ANGLE Project Authors. All rights reserved.
+// Copyright 2018 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,8 +13,8 @@
 #include "gtest/gtest.h"
 
 using testing::Combine;
-using testing::Values;
 using testing::make_tuple;
+using testing::Values;
 
 namespace sh
 {
@@ -56,7 +56,7 @@ class ShaderExtensionTest
         return TestShaderCompile(testing::get<1>(GetParam()),  // Version.
                                  pragma,
                                  testing::get<2>(GetParam())  // Shader.
-                                 );
+        );
     }
 
     testing::AssertionResult TestShaderCompile(const char *version,

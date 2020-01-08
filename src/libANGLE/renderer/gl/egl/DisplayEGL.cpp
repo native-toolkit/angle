@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 The ANGLE Project Authors. All rights reserved.
+// Copyright 2016 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -9,7 +9,7 @@
 #include "libANGLE/renderer/gl/egl/DisplayEGL.h"
 
 #include "libANGLE/renderer/gl/egl/ImageEGL.h"
-#include "libANGLE/renderer/gl/egl/egl_utils.h"
+#include "libANGLE/renderer/gl/egl/SyncEGL.h"
 
 namespace rx
 {
@@ -18,12 +18,9 @@ namespace rx
 
 DisplayEGL::DisplayEGL(const egl::DisplayState &state)
     : DisplayGL(state), mEGL(nullptr), mConfig(EGL_NO_CONFIG)
-{
-}
+{}
 
-DisplayEGL::~DisplayEGL()
-{
-}
+DisplayEGL::~DisplayEGL() {}
 
 ImageImpl *DisplayEGL::createImage(const egl::ImageState &state,
                                    const gl::Context *context,
@@ -31,6 +28,11 @@ ImageImpl *DisplayEGL::createImage(const egl::ImageState &state,
                                    const egl::AttributeMap &attribs)
 {
     return new ImageEGL(state, context, target, attribs, mEGL);
+}
+
+EGLSyncImpl *DisplayEGL::createSync(const egl::AttributeMap &attribs)
+{
+    return new SyncEGL(attribs, mEGL);
 }
 
 std::string DisplayEGL::getVendorString() const
@@ -42,7 +44,8 @@ std::string DisplayEGL::getVendorString() const
 
 egl::Error DisplayEGL::initializeContext(EGLContext shareContext,
                                          const egl::AttributeMap &eglAttributes,
-                                         EGLContext *outContext) const
+                                         EGLContext *outContext,
+                                         native_egl::AttributeVector *outAttribs) const
 {
     gl::Version eglVersion(mEGL->majorVersion, mEGL->minorVersion);
 
@@ -100,6 +103,7 @@ egl::Error DisplayEGL::initializeContext(EGLContext shareContext,
         if (context != EGL_NO_CONTEXT)
         {
             *outContext = context;
+            *outAttribs = attribList;
             return egl::NoError();
         }
     }
@@ -109,11 +113,13 @@ egl::Error DisplayEGL::initializeContext(EGLContext shareContext,
 
 void DisplayEGL::generateExtensions(egl::DisplayExtensions *outExtensions) const
 {
+    gl::Version eglVersion(mEGL->majorVersion, mEGL->minorVersion);
+
     outExtensions->createContextRobustness =
         mEGL->hasExtension("EGL_EXT_create_context_robustness");
 
-    outExtensions->postSubBuffer = false;  // Since SurfaceEGL::postSubBuffer is not implemented
-    outExtensions->presentationTime      = mEGL->hasExtension("EGL_ANDROID_presentation_time");
+    outExtensions->postSubBuffer    = false;  // Since SurfaceEGL::postSubBuffer is not implemented
+    outExtensions->presentationTime = mEGL->hasExtension("EGL_ANDROID_presentation_time");
 
     // Contexts are virtualized so textures can be shared globally
     outExtensions->displayTextureShareGroup = true;
@@ -131,12 +137,52 @@ void DisplayEGL::generateExtensions(egl::DisplayExtensions *outExtensions) const
     outExtensions->glTexture3DImage      = mEGL->hasExtension("EGL_KHR_gl_texture_3D_image");
     outExtensions->glRenderbufferImage   = mEGL->hasExtension("EGL_KHR_gl_renderbuffer_image");
 
+    outExtensions->glColorspace = mEGL->hasExtension("EGL_KHR_gl_colorspace");
+    if (outExtensions->glColorspace)
+    {
+        outExtensions->glColorspaceDisplayP3Linear =
+            mEGL->hasExtension("EGL_EXT_gl_colorspace_display_p3_linear");
+        outExtensions->glColorspaceDisplayP3 =
+            mEGL->hasExtension("EGL_EXT_gl_colorspace_display_p3");
+        outExtensions->glColorspaceScrgb = mEGL->hasExtension("EGL_EXT_gl_colorspace_scrgb");
+        outExtensions->glColorspaceScrgbLinear =
+            mEGL->hasExtension("EGL_EXT_gl_colorspace_scrgb_linear");
+        outExtensions->glColorspaceDisplayP3Passthrough =
+            mEGL->hasExtension("EGL_EXT_gl_colorspace_display_p3_passthrough");
+    }
+
+    outExtensions->imageNativeBuffer = mEGL->hasExtension("EGL_ANDROID_image_native_buffer");
+
+    outExtensions->getFrameTimestamps = mEGL->hasExtension("EGL_ANDROID_get_frame_timestamps");
+
+    outExtensions->fenceSync =
+        eglVersion >= gl::Version(1, 5) || mEGL->hasExtension("EGL_KHR_fence_sync");
+    outExtensions->waitSync =
+        eglVersion >= gl::Version(1, 5) || mEGL->hasExtension("EGL_KHR_wait_sync");
+
+    outExtensions->getNativeClientBufferANDROID =
+        mEGL->hasExtension("EGL_ANDROID_get_native_client_buffer");
+
+    outExtensions->nativeFenceSyncANDROID = mEGL->hasExtension("EGL_ANDROID_native_fence_sync");
+
+    outExtensions->noConfigContext = mEGL->hasExtension("EGL_KHR_no_config_context");
+
+    outExtensions->framebufferTargetANDROID = mEGL->hasExtension("EGL_ANDROID_framebuffer_target");
+
     DisplayGL::generateExtensions(outExtensions);
 }
 
 void DisplayEGL::generateCaps(egl::Caps *outCaps) const
 {
     outCaps->textureNPOT = true;  // Since we request GLES >= 2
+}
+
+void DisplayEGL::setBlobCacheFuncs(EGLSetBlobFuncANDROID set, EGLGetBlobFuncANDROID get)
+{
+    if (mEGL->hasExtension("EGL_ANDROID_blob_cache"))
+    {
+        mEGL->setBlobCacheFuncsANDROID(set, get);
+    }
 }
 
 }  // namespace rx

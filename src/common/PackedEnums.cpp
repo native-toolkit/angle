@@ -34,8 +34,14 @@ TextureType TextureTargetToType(TextureTarget target)
             return TextureType::_2DArray;
         case TextureTarget::_2DMultisample:
             return TextureType::_2DMultisample;
+        case TextureTarget::_2DMultisampleArray:
+            return TextureType::_2DMultisampleArray;
         case TextureTarget::_3D:
             return TextureType::_3D;
+        case TextureTarget::VideoImage:
+            return TextureType::VideoImage;
+        case TextureTarget::InvalidEnum:
+            return TextureType::InvalidEnum;
         default:
             UNREACHABLE();
             return TextureType::InvalidEnum;
@@ -61,8 +67,12 @@ TextureTarget NonCubeTextureTypeToTarget(TextureType type)
             return TextureTarget::_2DArray;
         case TextureType::_2DMultisample:
             return TextureTarget::_2DMultisample;
+        case TextureType::_2DMultisampleArray:
+            return TextureTarget::_2DMultisampleArray;
         case TextureType::_3D:
             return TextureTarget::_3D;
+        case TextureType::VideoImage:
+            return TextureTarget::VideoImage;
         default:
             UNREACHABLE();
             return TextureTarget::InvalidEnum;
@@ -138,8 +148,16 @@ TextureType SamplerTypeToTextureType(GLenum samplerType)
         case GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE:
             return TextureType::_2DMultisample;
 
+        case GL_SAMPLER_2D_MULTISAMPLE_ARRAY:
+        case GL_INT_SAMPLER_2D_MULTISAMPLE_ARRAY:
+        case GL_UNSIGNED_INT_SAMPLER_2D_MULTISAMPLE_ARRAY:
+            return TextureType::_2DMultisampleArray;
+
         case GL_SAMPLER_2D_RECT_ANGLE:
             return TextureType::Rectangle;
+
+        case GL_SAMPLER_VIDEO_IMAGE_WEBGL:
+            return TextureType::VideoImage;
 
         default:
             UNREACHABLE();
@@ -147,6 +165,144 @@ TextureType SamplerTypeToTextureType(GLenum samplerType)
     }
 }
 
+bool IsMultisampled(TextureType type)
+{
+    switch (type)
+    {
+        case TextureType::_2DMultisample:
+        case TextureType::_2DMultisampleArray:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool IsArrayTextureType(TextureType type)
+{
+    switch (type)
+    {
+        case TextureType::_2DArray:
+        case TextureType::_2DMultisampleArray:
+            return true;
+        default:
+            return false;
+    }
+}
+
+std::ostream &operator<<(std::ostream &os, PrimitiveMode value)
+{
+    switch (value)
+    {
+        case PrimitiveMode::LineLoop:
+            os << "GL_LINE_LOOP";
+            break;
+        case PrimitiveMode::Lines:
+            os << "GL_LINES";
+            break;
+        case PrimitiveMode::LinesAdjacency:
+            os << "GL_LINES_ADJACENCY";
+            break;
+        case PrimitiveMode::LineStrip:
+            os << "GL_LINE_STRIP";
+            break;
+        case PrimitiveMode::LineStripAdjacency:
+            os << "GL_LINE_STRIP_ADJANCENCY";
+            break;
+        case PrimitiveMode::Points:
+            os << "GL_POINTS";
+            break;
+        case PrimitiveMode::TriangleFan:
+            os << "GL_TRIANGLE_FAN";
+            break;
+        case PrimitiveMode::Triangles:
+            os << "GL_TRIANGLES";
+            break;
+        case PrimitiveMode::TrianglesAdjacency:
+            os << "GL_TRIANGLES_ADJANCENCY";
+            break;
+        case PrimitiveMode::TriangleStrip:
+            os << "GL_TRIANGLE_STRIP";
+            break;
+        case PrimitiveMode::TriangleStripAdjacency:
+            os << "GL_TRIANGLE_STRIP_ADJACENCY";
+            break;
+        default:
+            os << "GL_INVALID_ENUM";
+            break;
+    }
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &os, DrawElementsType value)
+{
+    switch (value)
+    {
+        case DrawElementsType::UnsignedByte:
+            os << "GL_UNSIGNED_BYTE";
+            break;
+        case DrawElementsType::UnsignedShort:
+            os << "GL_UNSIGNED_SHORT";
+            break;
+        case DrawElementsType::UnsignedInt:
+            os << "GL_UNSIGNED_INT";
+            break;
+        default:
+            os << "GL_INVALID_ENUM";
+            break;
+    }
+
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &os, VertexAttribType value)
+{
+    switch (value)
+    {
+        case VertexAttribType::Byte:
+            os << "GL_BYTE";
+            break;
+        case VertexAttribType::Fixed:
+            os << "GL_FIXED";
+            break;
+        case VertexAttribType::Float:
+            os << "GL_FLOAT";
+            break;
+        case VertexAttribType::HalfFloat:
+            os << "GL_HALF_FLOAT";
+            break;
+        case VertexAttribType::Int:
+            os << "GL_INT";
+            break;
+        case VertexAttribType::Int2101010:
+            os << "GL_INT_10_10_10_2";
+            break;
+        case VertexAttribType::Int1010102:
+            os << "GL_INT_10_10_10_2_OES";
+            break;
+        case VertexAttribType::Short:
+            os << "GL_SHORT";
+            break;
+        case VertexAttribType::UnsignedByte:
+            os << "GL_UNSIGNED_BYTE";
+            break;
+        case VertexAttribType::UnsignedInt:
+            os << "GL_UNSIGNED_INT";
+            break;
+        case VertexAttribType::UnsignedInt2101010:
+            os << "GL_UNSIGNED_INT_10_10_10_2";
+            break;
+        case VertexAttribType::UnsignedInt1010102:
+            os << "GL_UNSIGNED_INT_10_10_10_2_OES";
+            break;
+        case VertexAttribType::UnsignedShort:
+            os << "GL_UNSIGNED_SHORT";
+            break;
+        default:
+            os << "GL_INVALID_ENUM";
+            break;
+    }
+    return os;
+}
 }  // namespace gl
 
 namespace egl

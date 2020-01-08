@@ -61,7 +61,9 @@ TEST_P(BasicDrawTest, EnableDisableTexture)
 
     // Green
     GLubyte texture[] = {
-        0x00, 0xff, 0x00,
+        0x00,
+        0xff,
+        0x00,
     };
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, texture);
@@ -78,4 +80,4 @@ TEST_P(BasicDrawTest, EnableDisableTexture)
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
 }
 
-ANGLE_INSTANTIATE_TEST(BasicDrawTest, ES1_D3D11(), ES1_OPENGL(), ES1_OPENGLES());
+ANGLE_INSTANTIATE_TEST_ES1(BasicDrawTest);

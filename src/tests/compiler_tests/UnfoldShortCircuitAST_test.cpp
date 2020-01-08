@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2018 The ANGLE Project Authors. All rights reserved.
+// Copyright 2018 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -18,8 +18,7 @@ class UnfoldShortCircuitASTTest : public MatchOutputCodeTest
   public:
     UnfoldShortCircuitASTTest()
         : MatchOutputCodeTest(GL_FRAGMENT_SHADER, SH_UNFOLD_SHORT_CIRCUIT, SH_GLSL_330_CORE_OUTPUT)
-    {
-    }
+    {}
 };
 
 // Test unfolding the && operator.

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 The ANGLE Project Authors. All rights reserved.
+// Copyright 2017 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -158,8 +158,7 @@ class FindStructByName final : public TIntermTraverser
   public:
     FindStructByName(const ImmutableString &structName)
         : TIntermTraverser(true, false, false), mStructName(structName), mStructure(nullptr)
-    {
-    }
+    {}
 
     void visitSymbol(TIntermSymbol *symbol) override
     {
@@ -177,7 +176,7 @@ class FindStructByName final : public TIntermTraverser
         }
     }
 
-    bool isStructureFound() const { return mStructure != nullptr; };
+    bool isStructureFound() const { return mStructure != nullptr; }
     const TStructure *getStructure() const { return mStructure; }
 
   private:

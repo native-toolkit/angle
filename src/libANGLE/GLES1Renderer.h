@@ -20,8 +20,8 @@
 
 namespace gl
 {
-
 class Context;
+class GLES1State;
 class Program;
 class State;
 class Shader;
@@ -35,11 +35,10 @@ class GLES1Renderer final : angle::NonCopyable
 
     void onDestroy(Context *context, State *state);
 
-    Error prepareForDraw(PrimitiveMode mode, Context *context, State *glState);
+    angle::Result prepareForDraw(PrimitiveMode mode, Context *context, State *glState);
 
-    int vertexArrayIndex(ClientVertexArrayType type, const State *glState) const;
+    static int VertexArrayIndex(ClientVertexArrayType type, const GLES1State &gles1);
     static int TexCoordArrayIndex(unsigned int unit);
-    AttributesMask getVertexArraysAttributeMask(const State *glState) const;
 
     void drawTexture(Context *context,
                      State *glState,
@@ -49,28 +48,34 @@ class GLES1Renderer final : angle::NonCopyable
                      float width,
                      float height);
 
+    static constexpr int kTexUnitCount = 4;
+
   private:
     using Mat4Uniform = float[16];
     using Vec4Uniform = float[4];
     using Vec3Uniform = float[3];
 
-    Shader *getShader(GLuint handle) const;
-    Program *getProgram(GLuint handle) const;
+    Shader *getShader(ShaderProgramID handle) const;
+    Program *getProgram(ShaderProgramID handle) const;
 
-    Error compileShader(Context *context,
-                        ShaderType shaderType,
-                        const char *src,
-                        GLuint *shaderOut);
-    Error linkProgram(Context *context,
-                      State *glState,
-                      GLuint vshader,
-                      GLuint fshader,
-                      const std::unordered_map<GLint, std::string> &attribLocs,
-                      GLuint *programOut);
-    Error initializeRendererProgram(Context *context, State *glState);
+    angle::Result compileShader(Context *context,
+                                ShaderType shaderType,
+                                const char *src,
+                                ShaderProgramID *shaderOut);
+    angle::Result linkProgram(Context *context,
+                              State *glState,
+                              ShaderProgramID vshader,
+                              ShaderProgramID fshader,
+                              const std::unordered_map<GLint, std::string> &attribLocs,
+                              ShaderProgramID *programOut);
+    angle::Result initializeRendererProgram(Context *context, State *glState);
 
-    void setUniform1i(Program *programObject, GLint loc, GLint value);
-    void setUniform1iv(Program *programObject, GLint loc, GLint count, const GLint *value);
+    void setUniform1i(Context *context, Program *programObject, GLint loc, GLint value);
+    void setUniform1iv(Context *context,
+                       Program *programObject,
+                       GLint loc,
+                       GLint count,
+                       const GLint *value);
     void setUniformMatrix4fv(Program *programObject,
                              GLint loc,
                              GLint count,
@@ -84,7 +89,6 @@ class GLES1Renderer final : angle::NonCopyable
 
     void setAttributesEnabled(Context *context, State *glState, AttributesMask mask);
 
-    static constexpr int kTexUnitCount   = 4;
     static constexpr int kLightCount     = 8;
     static constexpr int kClipPlaneCount = 6;
 
@@ -99,7 +103,7 @@ class GLES1Renderer final : angle::NonCopyable
 
     struct GLES1ProgramState
     {
-        GLuint program;
+        ShaderProgramID program;
 
         GLint projMatrixLoc;
         GLint modelviewMatrixLoc;

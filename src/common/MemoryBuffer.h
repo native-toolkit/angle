@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2014 The ANGLE Project Authors. All rights reserved.
+// Copyright 2014 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -20,7 +20,8 @@ namespace angle
 class MemoryBuffer final : NonCopyable
 {
   public:
-    MemoryBuffer();
+    MemoryBuffer() = default;
+    MemoryBuffer(size_t size) { resize(size); }
     ~MemoryBuffer();
 
     MemoryBuffer(MemoryBuffer &&other);
@@ -37,11 +38,22 @@ class MemoryBuffer final : NonCopyable
         return mData;
     }
 
+    uint8_t &operator[](size_t pos)
+    {
+        ASSERT(pos < mSize);
+        return mData[pos];
+    }
+    const uint8_t &operator[](size_t pos) const
+    {
+        ASSERT(pos < mSize);
+        return mData[pos];
+    }
+
     void fill(uint8_t datum);
 
   private:
-    size_t mSize;
-    uint8_t *mData;
+    size_t mSize   = 0;
+    uint8_t *mData = nullptr;
 };
 
 class ScratchBuffer final : NonCopyable

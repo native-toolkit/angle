@@ -14,13 +14,9 @@
 namespace rx
 {
 
-DeviceVk::DeviceVk() : DeviceImpl()
-{
-}
+DeviceVk::DeviceVk() : DeviceImpl() {}
 
-DeviceVk::~DeviceVk()
-{
-}
+DeviceVk::~DeviceVk() {}
 
 egl::Error DeviceVk::initialize()
 {
@@ -28,7 +24,7 @@ egl::Error DeviceVk::initialize()
     return egl::NoError();
 }
 
-egl::Error DeviceVk::getDevice(void **outValue)
+egl::Error DeviceVk::getAttribute(const egl::Display *display, EGLint attribute, void **outValue)
 {
     UNIMPLEMENTED();
     return egl::EglBadAccess();

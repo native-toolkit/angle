@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2015 The ANGLE Project Authors. All rights reserved.
+// Copyright 2015 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -7,9 +7,9 @@
 //   Tests that malformed shaders fail compilation, and that correct shaders pass compilation.
 //
 
+#include "GLSLANG/ShaderLang.h"
 #include "angle_gl.h"
 #include "gtest/gtest.h"
-#include "GLSLANG/ShaderLang.h"
 #include "tests/test_utils/ShaderCompileTreeTest.h"
 
 using namespace sh;
@@ -20,6 +20,7 @@ class FragmentShaderValidationTest : public ShaderCompileTreeTest
 {
   public:
     FragmentShaderValidationTest() {}
+
   protected:
     ::GLenum getShaderType() const override { return GL_FRAGMENT_SHADER; }
     ShShaderSpec getShaderSpec() const override { return SH_GLES3_1_SPEC; }
@@ -605,8 +606,8 @@ TEST_F(FragmentShaderValidationTest, AssignUniformToGlobalESSL3)
 }
 
 // Global variable initializers need to be constant expressions (ESSL 1.00 section 4.3)
-// Initializing with an uniform should generate a warning
-// (we don't generate an error on ESSL 1.00 because of legacy compatibility)
+// Initializing with an uniform used to generate a warning on ESSL 1.00 because of legacy
+// compatibility, but that causes dEQP to fail (which expects an error)
 TEST_F(FragmentShaderValidationTest, AssignUniformToGlobalESSL1)
 {
     const std::string &shaderString =
@@ -618,15 +619,7 @@ TEST_F(FragmentShaderValidationTest, AssignUniformToGlobalESSL1)
         "}\n";
     if (compile(shaderString))
     {
-        if (!hasWarning())
-        {
-            FAIL() << "Shader compilation succeeded without warnings, expecting warning:\n"
-                   << mInfoLog;
-        }
-    }
-    else
-    {
-        FAIL() << "Shader compilation failed, expecting success with warning:\n" << mInfoLog;
+        FAIL() << "Shader compilation succeeded, expecting failure:\n" << mInfoLog;
     }
 }
 
@@ -1288,24 +1281,88 @@ TEST_F(FragmentShaderValidationTest, DynamicallyIndexedFragmentOutput)
     }
 }
 
-// Test that indexing an interface block array with a non-constant expression is forbidden, even if
+// Test that indexing a uniform buffer array with a non-constant expression is forbidden, even if
 // ANGLE is able to constant fold the index expression. ESSL 3.00 section 4.3.7.
-TEST_F(FragmentShaderValidationTest, DynamicallyIndexedInterfaceBlock)
+TEST_F(FragmentShaderValidationTest, DynamicallyIndexedUniformBuffer)
 {
     const std::string &shaderString =
-        "#version 300 es\n"
-        "precision mediump float;\n"
-        "uniform int a;\n"
-        "uniform B\n"
-        "{\n"
-        "    vec4 f;\n"
-        "}\n"
-        "blocks[2];\n"
-        "out vec4 my_FragColor;\n"
-        "void main()\n"
-        "{\n"
-        "    my_FragColor = blocks[true ? 0 : a].f;\n"
-        "}\n";
+        R"(#version 300 es
+        precision mediump float;
+        uniform int a;
+        uniform B
+        {
+            vec4 f;
+        }
+        blocks[2];
+        out vec4 my_FragColor;
+        void main()
+        {
+            my_FragColor = blocks[true ? 0 : a].f;
+        })";
+    if (compile(shaderString))
+    {
+        FAIL() << "Shader compilation succeeded, expecting failure:\n" << mInfoLog;
+    }
+}
+
+// Test that indexing a storage buffer array with a non-constant expression is forbidden, even if
+// ANGLE is able to constant fold the index expression. ESSL 3.10 section 4.3.9.
+TEST_F(FragmentShaderValidationTest, DynamicallyIndexedStorageBuffer)
+{
+    const std::string &shaderString =
+        R"(#version 310 es
+        precision mediump float;
+        uniform int a;
+        layout(std140) buffer B
+        {
+            vec4 f;
+        }
+        blocks[2];
+        out vec4 my_FragColor;
+        void main()
+        {
+            my_FragColor = blocks[true ? 0 : a].f;
+        })";
+    if (compile(shaderString))
+    {
+        FAIL() << "Shader compilation succeeded, expecting failure:\n" << mInfoLog;
+    }
+}
+
+// Test that indexing a sampler array with a non-constant expression is forbidden, even if ANGLE is
+// able to constant fold the index expression. ESSL 3.00 section 4.1.7.1.
+TEST_F(FragmentShaderValidationTest, DynamicallyIndexedSampler)
+{
+    const std::string &shaderString =
+        R"(#version 300 es
+        precision mediump float;
+        uniform int a;
+        uniform sampler2D s[2];
+        out vec4 my_FragColor;
+        void main()
+        {
+            my_FragColor = texture(s[true ? 0 : a], vec2(0));
+        })";
+    if (compile(shaderString))
+    {
+        FAIL() << "Shader compilation succeeded, expecting failure:\n" << mInfoLog;
+    }
+}
+
+// Test that indexing an image array with a non-constant expression is forbidden, even if ANGLE is
+// able to constant fold the index expression. ESSL 3.10 section 4.1.7.2.
+TEST_F(FragmentShaderValidationTest, DynamicallyIndexedImage)
+{
+    const std::string &shaderString =
+        R"(#version 310 es
+        precision mediump float;
+        uniform int a;
+        layout(rgba32f) uniform highp readonly image2D image[2];
+        out vec4 my_FragColor;
+        void main()
+        {
+            my_FragColor = imageLoad(image[true ? 0 : a], ivec2(0));
+        })";
     if (compile(shaderString))
     {
         FAIL() << "Shader compilation succeeded, expecting failure:\n" << mInfoLog;
@@ -1345,6 +1402,46 @@ TEST_F(WebGL2FragmentShaderValidationTest, IndexFragDataWithNonConstant)
     if (compile(shaderString))
     {
         FAIL() << "Shader compilation succeeded, expecting failure:\n" << mInfoLog;
+    }
+}
+
+// Global variable initializers need to be constant expressions (ESSL 1.00 section 4.3)
+// Initializing with an uniform should generate a warning
+// (we don't generate an error on ESSL 1.00 because of WebGL compatibility)
+TEST_F(WebGL2FragmentShaderValidationTest, AssignUniformToGlobalESSL1)
+{
+    const std::string &shaderString =
+        "precision mediump float;\n"
+        "uniform float a;\n"
+        "float b = a * 2.0;\n"
+        "void main() {\n"
+        "   gl_FragColor = vec4(b);\n"
+        "}\n";
+    if (compile(shaderString))
+    {
+        if (!hasWarning())
+        {
+            FAIL() << "Shader compilation succeeded without warnings, expecting warning:\n"
+                   << mInfoLog;
+        }
+    }
+    else
+    {
+        FAIL() << "Shader compilation failed, expecting success with warning:\n" << mInfoLog;
+    }
+}
+
+// Test that deferring global variable init works with an empty main().
+TEST_F(WebGL2FragmentShaderValidationTest, DeferGlobalVariableInitWithEmptyMain)
+{
+    const std::string &shaderString =
+        "precision mediump float;\n"
+        "uniform float u;\n"
+        "float foo = u;\n"
+        "void main() {}\n";
+    if (!compile(shaderString))
+    {
+        FAIL() << "Shader compilation failed, expecting success:\n" << mInfoLog;
     }
 }
 
@@ -1465,6 +1562,46 @@ TEST_F(WebGL1FragmentShaderValidationTest, NonConstantLoopIndex)
     if (compile(shaderString))
     {
         FAIL() << "Shader compilation succeeded, expecting failure:\n" << mInfoLog;
+    }
+}
+
+// Global variable initializers need to be constant expressions (ESSL 1.00 section 4.3)
+// Initializing with an uniform should generate a warning
+// (we don't generate an error on ESSL 1.00 because of WebGL compatibility)
+TEST_F(WebGL1FragmentShaderValidationTest, AssignUniformToGlobalESSL1)
+{
+    const std::string &shaderString =
+        "precision mediump float;\n"
+        "uniform float a;\n"
+        "float b = a * 2.0;\n"
+        "void main() {\n"
+        "   gl_FragColor = vec4(b);\n"
+        "}\n";
+    if (compile(shaderString))
+    {
+        if (!hasWarning())
+        {
+            FAIL() << "Shader compilation succeeded without warnings, expecting warning:\n"
+                   << mInfoLog;
+        }
+    }
+    else
+    {
+        FAIL() << "Shader compilation failed, expecting success with warning:\n" << mInfoLog;
+    }
+}
+
+// Test that deferring global variable init works with an empty main().
+TEST_F(WebGL1FragmentShaderValidationTest, DeferGlobalVariableInitWithEmptyMain)
+{
+    const std::string &shaderString =
+        "precision mediump float;\n"
+        "uniform float u;\n"
+        "float foo = u;\n"
+        "void main() {}\n";
+    if (!compile(shaderString))
+    {
+        FAIL() << "Shader compilation failed, expecting success:\n" << mInfoLog;
     }
 }
 
@@ -2632,20 +2769,6 @@ TEST_F(FragmentShaderValidationTest, ShiftByNegative)
     else
     {
         FAIL() << "Shader compilation failed, expecting success with warning:\n" << mInfoLog;
-    }
-}
-
-// Test that deferring global variable init works with an empty main().
-TEST_F(FragmentShaderValidationTest, DeferGlobalVariableInitWithEmptyMain)
-{
-    const std::string &shaderString =
-        "precision mediump float;\n"
-        "uniform float u;\n"
-        "float foo = u;\n"
-        "void main() {}\n";
-    if (!compile(shaderString))
-    {
-        FAIL() << "Shader compilation failed, expecting success:\n" << mInfoLog;
     }
 }
 
@@ -4572,10 +4695,14 @@ TEST_F(FragmentShaderEXTGeometryShaderValidationTest, GeometryShaderBuiltInConst
             int val = )";
 
     const std::array<std::string, 9> kGeometryShaderBuiltinConstants = {{
-        "gl_MaxGeometryInputComponents", "gl_MaxGeometryOutputComponents",
-        "gl_MaxGeometryImageUniforms", "gl_MaxGeometryTextureImageUnits",
-        "gl_MaxGeometryOutputVertices", "gl_MaxGeometryTotalOutputComponents",
-        "gl_MaxGeometryUniformComponents", "gl_MaxGeometryAtomicCounters",
+        "gl_MaxGeometryInputComponents",
+        "gl_MaxGeometryOutputComponents",
+        "gl_MaxGeometryImageUniforms",
+        "gl_MaxGeometryTextureImageUnits",
+        "gl_MaxGeometryOutputVertices",
+        "gl_MaxGeometryTotalOutputComponents",
+        "gl_MaxGeometryUniformComponents",
+        "gl_MaxGeometryAtomicCounters",
         "gl_MaxGeometryAtomicCounterBuffers",
     }};
 
@@ -4609,10 +4736,14 @@ TEST_F(FragmentShaderEXTGeometryShaderValidationTest,
         "    int val = ";
 
     const std::array<std::string, 9> kGeometryShaderBuiltinConstants = {{
-        "gl_MaxGeometryInputComponents", "gl_MaxGeometryOutputComponents",
-        "gl_MaxGeometryImageUniforms", "gl_MaxGeometryTextureImageUnits",
-        "gl_MaxGeometryOutputVertices", "gl_MaxGeometryTotalOutputComponents",
-        "gl_MaxGeometryUniformComponents", "gl_MaxGeometryAtomicCounters",
+        "gl_MaxGeometryInputComponents",
+        "gl_MaxGeometryOutputComponents",
+        "gl_MaxGeometryImageUniforms",
+        "gl_MaxGeometryTextureImageUnits",
+        "gl_MaxGeometryOutputVertices",
+        "gl_MaxGeometryTotalOutputComponents",
+        "gl_MaxGeometryUniformComponents",
+        "gl_MaxGeometryAtomicCounters",
         "gl_MaxGeometryAtomicCounterBuffers",
     }};
 
@@ -5962,6 +6093,93 @@ TEST_F(FragmentShaderValidationTest, CaseInsideBlock)
                     my_FragColor = vec4(1.0);
             }
         })";
+    if (compile(shaderString))
+    {
+        FAIL() << "Shader compilation succeeded, expecting failure:\n" << mInfoLog;
+    }
+}
+
+// Test using a value from a constant array as a case label.
+TEST_F(FragmentShaderValidationTest, ValueFromConstantArrayAsCaseLabel)
+{
+    const std::string &shaderString =
+        R"(#version 300 es
+        precision mediump float;
+        uniform int u;
+        const int[3] arr = int[3](2, 1, 0);
+        out vec4 my_FragColor;
+        void main()
+        {
+            switch (u)
+            {
+                case arr[1]:
+                    my_FragColor = vec4(0.0);
+                case 2:
+                case 0:
+                default:
+                    my_FragColor = vec4(1.0);
+            }
+        })";
+    if (!compile(shaderString))
+    {
+        FAIL() << "Shader compilation failed, expecting success:\n" << mInfoLog;
+    }
+}
+
+// Test using a value from a constant array as a fragment output index.
+TEST_F(FragmentShaderValidationTest, ValueFromConstantArrayAsFragmentOutputIndex)
+{
+    const std::string &shaderString =
+        R"(#version 300 es
+        precision mediump float;
+        uniform int u;
+        const int[3] arr = int[3](4, 1, 0);
+        out vec4 my_FragData[2];
+        void main()
+        {
+            my_FragData[arr[1]] = vec4(0.0);
+            my_FragData[arr[2]] = vec4(0.0);
+        })";
+    if (!compile(shaderString))
+    {
+        FAIL() << "Shader compilation failed, expecting success:\n" << mInfoLog;
+    }
+}
+
+// Test using a value from a constant array as an array size.
+TEST_F(FragmentShaderValidationTest, ValueFromConstantArrayAsArraySize)
+{
+    const std::string &shaderString =
+        R"(#version 300 es
+        precision mediump float;
+        uniform int u;
+        const int[3] arr = int[3](0, 2, 0);
+        const int[arr[1]] arr2 = int[2](2, 1);
+        out vec4 my_FragColor;
+        void main()
+        {
+            my_FragColor = vec4(arr2[1]);
+        })";
+    if (!compile(shaderString))
+    {
+        FAIL() << "Shader compilation failed, expecting success:\n" << mInfoLog;
+    }
+}
+
+// Test that an invalid struct with void fields doesn't crash or assert when used in a comma
+// operator. This is a regression test.
+TEST_F(FragmentShaderValidationTest, InvalidStructWithVoidFieldsInComma)
+{
+    // The struct needed the two fields for the bug to repro.
+    const std::string &shaderString =
+        R"(#version 300 es
+precision highp float;
+
+struct T { void a[8], c; };
+
+void main() {
+    0.0, T();
+})";
     if (compile(shaderString))
     {
         FAIL() << "Shader compilation succeeded, expecting failure:\n" << mInfoLog;

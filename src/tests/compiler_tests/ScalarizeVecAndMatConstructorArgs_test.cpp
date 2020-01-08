@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2017 The ANGLE Project Authors. All rights reserved.
+// Copyright 2017 The ANGLE Project Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -24,8 +24,7 @@ class ScalarizeVecAndMatConstructorArgsTest : public MatchOutputCodeTest
         : MatchOutputCodeTest(GL_FRAGMENT_SHADER,
                               SH_SCALARIZE_VEC_AND_MAT_CONSTRUCTOR_ARGS,
                               SH_ESSL_OUTPUT)
-    {
-    }
+    {}
 };
 
 // Verifies scalarizing matrix inside a vector constructor.

@@ -10,6 +10,7 @@
 #ifndef LIBANGLE_RENDERER_VULKAN_DISPLAYVK_H_
 #define LIBANGLE_RENDERER_VULKAN_DISPLAYVK_H_
 
+#include "common/MemoryBuffer.h"
 #include "libANGLE/renderer/DisplayImpl.h"
 #include "libANGLE/renderer/vulkan/vk_utils.h"
 
@@ -58,34 +59,49 @@ class DisplayVk : public DisplayImpl, public vk::Context
                            EGLenum target,
                            const egl::AttributeMap &attribs) override;
 
-    ContextImpl *createContext(const gl::ContextState &state,
+    ContextImpl *createContext(const gl::State &state,
+                               gl::ErrorSet *errorSet,
                                const egl::Config *configuration,
                                const gl::Context *shareContext,
                                const egl::AttributeMap &attribs) override;
 
     StreamProducerImpl *createStreamProducerD3DTexture(egl::Stream::ConsumerType consumerType,
                                                        const egl::AttributeMap &attribs) override;
-    gl::Version getMaxSupportedESVersion() const override;
 
-    virtual const char *getWSIName() const = 0;
+    EGLSyncImpl *createSync(const egl::AttributeMap &attribs) override;
+
+    gl::Version getMaxSupportedESVersion() const override;
+    gl::Version getMaxConformantESVersion() const override;
+
+    virtual const char *getWSIExtension() const = 0;
+    virtual const char *getWSILayer() const;
 
     // Determine if a config with given formats and sample counts is supported.  This callback may
     // modify the config to add or remove platform specific attributes such as nativeVisualID before
     // returning a bool to indicate if the config should be supported.
     virtual bool checkConfigSupport(egl::Config *config) = 0;
 
-    void handleError(VkResult result, const char *file, unsigned int line) override;
+    ANGLE_NO_DISCARD bool getScratchBuffer(size_t requestedSizeBytes,
+                                           angle::MemoryBuffer **scratchBufferOut) const;
+    angle::ScratchBuffer *getScratchBuffer() const { return &mScratchBuffer; }
 
-    // TODO(jmadill): Remove this once refactor is done. http://anglebug.com/2491
+    void handleError(VkResult result,
+                     const char *file,
+                     const char *function,
+                     unsigned int line) override;
+
+    // TODO(jmadill): Remove this once refactor is done. http://anglebug.com/3041
     egl::Error getEGLError(EGLint errorCode);
+
+    void populateFeatureList(angle::FeatureList *features) override;
 
   private:
     virtual SurfaceImpl *createWindowSurfaceVk(const egl::SurfaceState &state,
-                                               EGLNativeWindowType window,
-                                               EGLint width,
-                                               EGLint height) = 0;
+                                               EGLNativeWindowType window) = 0;
     void generateExtensions(egl::DisplayExtensions *outExtensions) const override;
     void generateCaps(egl::Caps *outCaps) const override;
+
+    mutable angle::ScratchBuffer mScratchBuffer;
 
     std::string mStoredErrorString;
 };

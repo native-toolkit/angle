@@ -39,7 +39,7 @@ namespace angle
 {
 egl::Error ToEGL(Result result, rx::DisplayVk *displayVk, EGLint errorCode)
 {
-    if (result.isError())
+    if (result != angle::Result::Continue)
     {
         return displayVk->getEGLError(errorCode);
     }
@@ -52,14 +52,13 @@ egl::Error ToEGL(Result result, rx::DisplayVk *displayVk, EGLint errorCode)
 
 namespace rx
 {
-// Mirrors std_validation_str in loader.c
-const char *g_VkStdValidationLayerName = "VK_LAYER_LUNARG_standard_validation";
-const char *g_VkValidationLayerNames[] = {
+// Unified layer that includes full validation layer stack
+const char *g_VkKhronosValidationLayerName  = "VK_LAYER_KHRONOS_validation";
+const char *g_VkStandardValidationLayerName = "VK_LAYER_LUNARG_standard_validation";
+const char *g_VkValidationLayerNames[]      = {
     "VK_LAYER_GOOGLE_threading", "VK_LAYER_LUNARG_parameter_validation",
     "VK_LAYER_LUNARG_object_tracker", "VK_LAYER_LUNARG_core_validation",
     "VK_LAYER_GOOGLE_unique_objects"};
-const uint32_t g_VkNumValidationLayerNames =
-    sizeof(g_VkValidationLayerNames) / sizeof(g_VkValidationLayerNames[0]);
 
 bool HasValidationLayer(const std::vector<VkLayerProperties> &layerProps, const char *layerName)
 {
@@ -74,14 +73,19 @@ bool HasValidationLayer(const std::vector<VkLayerProperties> &layerProps, const 
     return false;
 }
 
+bool HasKhronosValidationLayer(const std::vector<VkLayerProperties> &layerProps)
+{
+    return HasValidationLayer(layerProps, g_VkKhronosValidationLayerName);
+}
+
 bool HasStandardValidationLayer(const std::vector<VkLayerProperties> &layerProps)
 {
-    return HasValidationLayer(layerProps, g_VkStdValidationLayerName);
+    return HasValidationLayer(layerProps, g_VkStandardValidationLayerName);
 }
 
 bool HasValidationLayers(const std::vector<VkLayerProperties> &layerProps)
 {
-    for (const auto &layerName : g_VkValidationLayerNames)
+    for (const char *layerName : g_VkValidationLayerNames)
     {
         if (!HasValidationLayer(layerProps, layerName))
         {
@@ -94,57 +98,63 @@ bool HasValidationLayers(const std::vector<VkLayerProperties> &layerProps)
 
 angle::Result FindAndAllocateCompatibleMemory(vk::Context *context,
                                               const vk::MemoryProperties &memoryProperties,
-                                              VkMemoryPropertyFlags memoryPropertyFlags,
+                                              VkMemoryPropertyFlags requestedMemoryPropertyFlags,
+                                              VkMemoryPropertyFlags *memoryPropertyFlagsOut,
                                               const VkMemoryRequirements &memoryRequirements,
+                                              const void *extraAllocationInfo,
                                               vk::DeviceMemory *deviceMemoryOut)
 {
     uint32_t memoryTypeIndex = 0;
     ANGLE_TRY(memoryProperties.findCompatibleMemoryIndex(context, memoryRequirements,
-                                                         memoryPropertyFlags, &memoryTypeIndex));
+                                                         requestedMemoryPropertyFlags,
+                                                         memoryPropertyFlagsOut, &memoryTypeIndex));
 
-    VkMemoryAllocateInfo allocInfo;
-    allocInfo.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.pNext           = nullptr;
-    allocInfo.memoryTypeIndex = memoryTypeIndex;
-    allocInfo.allocationSize  = memoryRequirements.size;
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType                = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.pNext                = extraAllocationInfo;
+    allocInfo.memoryTypeIndex      = memoryTypeIndex;
+    allocInfo.allocationSize       = memoryRequirements.size;
 
-    ANGLE_TRY(deviceMemoryOut->allocate(context, allocInfo));
-    return angle::Result::Continue();
+    ANGLE_VK_TRY(context, deviceMemoryOut->allocate(context->getDevice(), allocInfo));
+    return angle::Result::Continue;
+}
+
+template <typename T>
+angle::Result AllocateAndBindBufferOrImageMemory(vk::Context *context,
+                                                 VkMemoryPropertyFlags requestedMemoryPropertyFlags,
+                                                 VkMemoryPropertyFlags *memoryPropertyFlagsOut,
+                                                 const VkMemoryRequirements &memoryRequirements,
+                                                 const void *extraAllocationInfo,
+                                                 T *bufferOrImage,
+                                                 vk::DeviceMemory *deviceMemoryOut)
+{
+    const vk::MemoryProperties &memoryProperties = context->getRenderer()->getMemoryProperties();
+
+    ANGLE_TRY(FindAndAllocateCompatibleMemory(
+        context, memoryProperties, requestedMemoryPropertyFlags, memoryPropertyFlagsOut,
+        memoryRequirements, extraAllocationInfo, deviceMemoryOut));
+    ANGLE_VK_TRY(context, bufferOrImage->bindMemory(context->getDevice(), *deviceMemoryOut));
+    return angle::Result::Continue;
 }
 
 template <typename T>
 angle::Result AllocateBufferOrImageMemory(vk::Context *context,
-                                          VkMemoryPropertyFlags memoryPropertyFlags,
+                                          VkMemoryPropertyFlags requestedMemoryPropertyFlags,
+                                          VkMemoryPropertyFlags *memoryPropertyFlagsOut,
+                                          const void *extraAllocationInfo,
                                           T *bufferOrImage,
                                           vk::DeviceMemory *deviceMemoryOut)
 {
-    const vk::MemoryProperties &memoryProperties = context->getRenderer()->getMemoryProperties();
-
     // Call driver to determine memory requirements.
     VkMemoryRequirements memoryRequirements;
     bufferOrImage->getMemoryRequirements(context->getDevice(), &memoryRequirements);
 
-    ANGLE_TRY(FindAndAllocateCompatibleMemory(context, memoryProperties, memoryPropertyFlags,
-                                              memoryRequirements, deviceMemoryOut));
-    ANGLE_TRY(bufferOrImage->bindMemory(context, *deviceMemoryOut));
+    ANGLE_TRY(AllocateAndBindBufferOrImageMemory(
+        context, requestedMemoryPropertyFlags, memoryPropertyFlagsOut, memoryRequirements,
+        extraAllocationInfo, bufferOrImage, deviceMemoryOut));
 
-    return angle::Result::Continue();
+    return angle::Result::Continue;
 }
-
-uint32_t GetImageLayerCount(gl::TextureType textureType)
-{
-    if (textureType == gl::TextureType::CubeMap)
-    {
-        return gl::CUBE_FACE_COUNT;
-    }
-    else
-    {
-        return 1;
-    }
-}
-
-const char *g_VkLoaderLayersPathEnv = "VK_LAYER_PATH";
-const char *g_VkICDPathEnv          = "VK_ICD_FILENAMES";
 
 const char *VulkanResultString(VkResult result)
 {
@@ -202,6 +212,8 @@ const char *VulkanResultString(VkResult result)
                    "layout, or is incompatible in a way that prevents sharing an image.";
         case VK_ERROR_VALIDATION_FAILED_EXT:
             return "The validation layers detected invalid API usage.";
+        case VK_ERROR_INVALID_SHADER_NV:
+            return "Invalid Vulkan shader was generated.";
         default:
             return "Unknown vulkan error code.";
     }
@@ -209,18 +221,23 @@ const char *VulkanResultString(VkResult result)
 
 bool GetAvailableValidationLayers(const std::vector<VkLayerProperties> &layerProps,
                                   bool mustHaveLayers,
-                                  const char *const **enabledLayerNames,
-                                  uint32_t *enabledLayerCount)
+                                  VulkanLayerVector *enabledLayerNames)
 {
-    if (HasStandardValidationLayer(layerProps))
+    // Favor unified Khronos layer, but fallback to standard validation
+    if (HasKhronosValidationLayer(layerProps))
     {
-        *enabledLayerNames = &g_VkStdValidationLayerName;
-        *enabledLayerCount = 1;
+        enabledLayerNames->push_back(g_VkKhronosValidationLayerName);
+    }
+    else if (HasStandardValidationLayer(layerProps))
+    {
+        enabledLayerNames->push_back(g_VkStandardValidationLayerName);
     }
     else if (HasValidationLayers(layerProps))
     {
-        *enabledLayerNames = g_VkValidationLayerNames;
-        *enabledLayerCount = g_VkNumValidationLayerNames;
+        for (const char *layerName : g_VkValidationLayerNames)
+        {
+            enabledLayerNames->push_back(layerName);
+        }
     }
     else
     {
@@ -234,8 +251,6 @@ bool GetAvailableValidationLayers(const std::vector<VkLayerProperties> &layerPro
             WARN() << "Vulkan validation layers are missing.";
         }
 
-        *enabledLayerNames = nullptr;
-        *enabledLayerCount = 0;
         return false;
     }
 
@@ -244,6 +259,9 @@ bool GetAvailableValidationLayers(const std::vector<VkLayerProperties> &layerPro
 
 namespace vk
 {
+const char *gLoaderLayersPathEnv   = "VK_LAYER_PATH";
+const char *gLoaderICDFilenamesEnv = "VK_ICD_FILENAMES";
+
 VkImageAspectFlags GetDepthStencilAspectFlags(const angle::Format &format)
 {
     return (format.depthBits > 0 ? VK_IMAGE_ASPECT_DEPTH_BIT : 0) |
@@ -252,757 +270,25 @@ VkImageAspectFlags GetDepthStencilAspectFlags(const angle::Format &format)
 
 VkImageAspectFlags GetFormatAspectFlags(const angle::Format &format)
 {
-    return (format.redBits > 0 ? VK_IMAGE_ASPECT_COLOR_BIT : 0) |
-           GetDepthStencilAspectFlags(format);
-}
-
-VkImageAspectFlags GetDepthStencilAspectFlagsForCopy(bool copyDepth, bool copyStencil)
-{
-    return copyDepth ? VK_IMAGE_ASPECT_DEPTH_BIT
-                     : 0 | copyStencil ? VK_IMAGE_ASPECT_STENCIL_BIT : 0;
+    VkImageAspectFlags dsAspect = GetDepthStencilAspectFlags(format);
+    // If the image is not depth stencil, assume color aspect.  Note that detecting color formats
+    // is less trivial than depth/stencil, e.g. as block formats don't indicate any bits for RGBA
+    // channels.
+    return dsAspect != 0 ? dsAspect : VK_IMAGE_ASPECT_COLOR_BIT;
 }
 
 // Context implementation.
-Context::Context(RendererVk *renderer) : mRenderer(renderer)
-{
-}
+Context::Context(RendererVk *renderer) : mRenderer(renderer) {}
 
-Context::~Context()
-{
-}
+Context::~Context() {}
 
 VkDevice Context::getDevice() const
 {
     return mRenderer->getDevice();
 }
 
-// BufferAndMemory implementation.
-BufferAndMemory::BufferAndMemory() = default;
-
-BufferAndMemory::BufferAndMemory(Buffer &&buffer, DeviceMemory &&deviceMemory)
-    : buffer(std::move(buffer)), memory(std::move(deviceMemory))
-{
-}
-
-BufferAndMemory::BufferAndMemory(BufferAndMemory &&other)
-    : buffer(std::move(other.buffer)), memory(std::move(other.memory))
-{
-}
-
-BufferAndMemory &BufferAndMemory::operator=(BufferAndMemory &&other)
-{
-    buffer = std::move(other.buffer);
-    memory = std::move(other.memory);
-    return *this;
-}
-
-// CommandPool implementation.
-CommandPool::CommandPool()
-{
-}
-
-void CommandPool::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroyCommandPool(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result CommandPool::init(Context *context, const VkCommandPoolCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context,
-                 vkCreateCommandPool(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-// CommandBuffer implementation.
-CommandBuffer::CommandBuffer()
-{
-}
-
-VkCommandBuffer CommandBuffer::releaseHandle()
-{
-    VkCommandBuffer handle = mHandle;
-    mHandle                = nullptr;
-    return handle;
-}
-
-angle::Result CommandBuffer::init(Context *context, const VkCommandBufferAllocateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context, vkAllocateCommandBuffers(context->getDevice(), &createInfo, &mHandle));
-    return angle::Result::Continue();
-}
-
-void CommandBuffer::blitImage(const Image &srcImage,
-                              VkImageLayout srcImageLayout,
-                              const Image &dstImage,
-                              VkImageLayout dstImageLayout,
-                              uint32_t regionCount,
-                              VkImageBlit *pRegions,
-                              VkFilter filter)
-{
-    ASSERT(valid());
-    vkCmdBlitImage(mHandle, srcImage.getHandle(), srcImageLayout, dstImage.getHandle(),
-                   dstImageLayout, regionCount, pRegions, filter);
-}
-
-angle::Result CommandBuffer::begin(Context *context, const VkCommandBufferBeginInfo &info)
-{
-    ASSERT(valid());
-    ANGLE_VK_TRY(context, vkBeginCommandBuffer(mHandle, &info));
-    return angle::Result::Continue();
-}
-
-angle::Result CommandBuffer::end(Context *context)
-{
-    ASSERT(valid());
-    ANGLE_VK_TRY(context, vkEndCommandBuffer(mHandle));
-    return angle::Result::Continue();
-}
-
-angle::Result CommandBuffer::reset(Context *context)
-{
-    ASSERT(valid());
-    ANGLE_VK_TRY(context, vkResetCommandBuffer(mHandle, 0));
-    return angle::Result::Continue();
-}
-
-void CommandBuffer::singleImageBarrier(VkPipelineStageFlags srcStageMask,
-                                       VkPipelineStageFlags dstStageMask,
-                                       VkDependencyFlags dependencyFlags,
-                                       const VkImageMemoryBarrier &imageMemoryBarrier)
-{
-    ASSERT(valid());
-    vkCmdPipelineBarrier(mHandle, srcStageMask, dstStageMask, dependencyFlags, 0, nullptr, 0,
-                         nullptr, 1, &imageMemoryBarrier);
-}
-
-void CommandBuffer::singleBufferBarrier(VkPipelineStageFlags srcStageMask,
-                                        VkPipelineStageFlags dstStageMask,
-                                        VkDependencyFlags dependencyFlags,
-                                        const VkBufferMemoryBarrier &bufferBarrier)
-{
-    ASSERT(valid());
-    vkCmdPipelineBarrier(mHandle, srcStageMask, dstStageMask, dependencyFlags, 0, nullptr, 1,
-                         &bufferBarrier, 0, nullptr);
-}
-
-void CommandBuffer::destroy(VkDevice device)
-{
-    releaseHandle();
-}
-
-void CommandBuffer::destroy(VkDevice device, const vk::CommandPool &commandPool)
-{
-    if (valid())
-    {
-        ASSERT(commandPool.valid());
-        vkFreeCommandBuffers(device, commandPool.getHandle(), 1, &mHandle);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-void CommandBuffer::copyBuffer(const vk::Buffer &srcBuffer,
-                               const vk::Buffer &destBuffer,
-                               uint32_t regionCount,
-                               const VkBufferCopy *regions)
-{
-    ASSERT(valid());
-    ASSERT(srcBuffer.valid() && destBuffer.valid());
-    vkCmdCopyBuffer(mHandle, srcBuffer.getHandle(), destBuffer.getHandle(), regionCount, regions);
-}
-
-void CommandBuffer::copyBuffer(const VkBuffer &srcBuffer,
-                               const VkBuffer &destBuffer,
-                               uint32_t regionCount,
-                               const VkBufferCopy *regions)
-{
-    ASSERT(valid());
-    vkCmdCopyBuffer(mHandle, srcBuffer, destBuffer, regionCount, regions);
-}
-
-void CommandBuffer::copyBufferToImage(VkBuffer srcBuffer,
-                                      const Image &dstImage,
-                                      VkImageLayout dstImageLayout,
-                                      uint32_t regionCount,
-                                      const VkBufferImageCopy *regions)
-{
-    ASSERT(valid());
-    ASSERT(srcBuffer != VK_NULL_HANDLE);
-    ASSERT(dstImage.valid());
-    vkCmdCopyBufferToImage(mHandle, srcBuffer, dstImage.getHandle(), dstImageLayout, regionCount,
-                           regions);
-}
-
-void CommandBuffer::copyImageToBuffer(const Image &srcImage,
-                                      VkImageLayout srcImageLayout,
-                                      VkBuffer dstBuffer,
-                                      uint32_t regionCount,
-                                      const VkBufferImageCopy *regions)
-{
-    ASSERT(valid());
-    ASSERT(dstBuffer != VK_NULL_HANDLE);
-    ASSERT(srcImage.valid());
-    vkCmdCopyImageToBuffer(mHandle, srcImage.getHandle(), srcImageLayout, dstBuffer, regionCount,
-                           regions);
-}
-
-void CommandBuffer::clearColorImage(const vk::Image &image,
-                                    VkImageLayout imageLayout,
-                                    const VkClearColorValue &color,
-                                    uint32_t rangeCount,
-                                    const VkImageSubresourceRange *ranges)
-{
-    ASSERT(valid());
-    vkCmdClearColorImage(mHandle, image.getHandle(), imageLayout, &color, rangeCount, ranges);
-}
-
-void CommandBuffer::clearDepthStencilImage(const vk::Image &image,
-                                           VkImageLayout imageLayout,
-                                           const VkClearDepthStencilValue &depthStencil,
-                                           uint32_t rangeCount,
-                                           const VkImageSubresourceRange *ranges)
-{
-    ASSERT(valid());
-    vkCmdClearDepthStencilImage(mHandle, image.getHandle(), imageLayout, &depthStencil, rangeCount,
-                                ranges);
-}
-
-void CommandBuffer::clearAttachments(uint32_t attachmentCount,
-                                     const VkClearAttachment *attachments,
-                                     uint32_t rectCount,
-                                     const VkClearRect *rects)
-{
-    ASSERT(valid());
-
-    vkCmdClearAttachments(mHandle, attachmentCount, attachments, rectCount, rects);
-}
-
-void CommandBuffer::copyImage(const vk::Image &srcImage,
-                              VkImageLayout srcImageLayout,
-                              const vk::Image &dstImage,
-                              VkImageLayout dstImageLayout,
-                              uint32_t regionCount,
-                              const VkImageCopy *regions)
-{
-    ASSERT(valid() && srcImage.valid() && dstImage.valid());
-    vkCmdCopyImage(mHandle, srcImage.getHandle(), srcImageLayout, dstImage.getHandle(),
-                   dstImageLayout, 1, regions);
-}
-
-void CommandBuffer::beginRenderPass(const VkRenderPassBeginInfo &beginInfo,
-                                    VkSubpassContents subpassContents)
-{
-    ASSERT(valid());
-    vkCmdBeginRenderPass(mHandle, &beginInfo, subpassContents);
-}
-
-void CommandBuffer::endRenderPass()
-{
-    ASSERT(mHandle != VK_NULL_HANDLE);
-    vkCmdEndRenderPass(mHandle);
-}
-
-void CommandBuffer::draw(uint32_t vertexCount,
-                         uint32_t instanceCount,
-                         uint32_t firstVertex,
-                         uint32_t firstInstance)
-{
-    ASSERT(valid());
-    vkCmdDraw(mHandle, vertexCount, instanceCount, firstVertex, firstInstance);
-}
-
-void CommandBuffer::drawIndexed(uint32_t indexCount,
-                                uint32_t instanceCount,
-                                uint32_t firstIndex,
-                                int32_t vertexOffset,
-                                uint32_t firstInstance)
-{
-    ASSERT(valid());
-    vkCmdDrawIndexed(mHandle, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
-}
-
-void CommandBuffer::bindPipeline(VkPipelineBindPoint pipelineBindPoint,
-                                 const vk::Pipeline &pipeline)
-{
-    ASSERT(valid() && pipeline.valid());
-    vkCmdBindPipeline(mHandle, pipelineBindPoint, pipeline.getHandle());
-}
-
-void CommandBuffer::bindVertexBuffers(uint32_t firstBinding,
-                                      uint32_t bindingCount,
-                                      const VkBuffer *buffers,
-                                      const VkDeviceSize *offsets)
-{
-    ASSERT(valid());
-    vkCmdBindVertexBuffers(mHandle, firstBinding, bindingCount, buffers, offsets);
-}
-
-void CommandBuffer::bindIndexBuffer(const VkBuffer &buffer,
-                                    VkDeviceSize offset,
-                                    VkIndexType indexType)
-{
-    ASSERT(valid());
-    vkCmdBindIndexBuffer(mHandle, buffer, offset, indexType);
-}
-
-void CommandBuffer::bindDescriptorSets(VkPipelineBindPoint bindPoint,
-                                       const vk::PipelineLayout &layout,
-                                       uint32_t firstSet,
-                                       uint32_t descriptorSetCount,
-                                       const VkDescriptorSet *descriptorSets,
-                                       uint32_t dynamicOffsetCount,
-                                       const uint32_t *dynamicOffsets)
-{
-    ASSERT(valid());
-    vkCmdBindDescriptorSets(mHandle, bindPoint, layout.getHandle(), firstSet, descriptorSetCount,
-                            descriptorSets, dynamicOffsetCount, dynamicOffsets);
-}
-
-void CommandBuffer::executeCommands(uint32_t commandBufferCount,
-                                    const vk::CommandBuffer *commandBuffers)
-{
-    ASSERT(valid());
-    vkCmdExecuteCommands(mHandle, commandBufferCount, commandBuffers[0].ptr());
-}
-
-void CommandBuffer::updateBuffer(const vk::Buffer &buffer,
-                                 VkDeviceSize dstOffset,
-                                 VkDeviceSize dataSize,
-                                 const void *data)
-{
-    ASSERT(valid() && buffer.valid());
-    vkCmdUpdateBuffer(mHandle, buffer.getHandle(), dstOffset, dataSize, data);
-}
-
-void CommandBuffer::pushConstants(const PipelineLayout &layout,
-                                  VkShaderStageFlags flag,
-                                  uint32_t offset,
-                                  uint32_t size,
-                                  const void *data)
-{
-    ASSERT(valid() && layout.valid());
-    vkCmdPushConstants(mHandle, layout.getHandle(), flag, offset, size, data);
-}
-
-// Image implementation.
-Image::Image()
-{
-}
-
-void Image::setHandle(VkImage handle)
-{
-    mHandle = handle;
-}
-
-void Image::reset()
-{
-    mHandle = VK_NULL_HANDLE;
-}
-
-void Image::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroyImage(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result Image::init(Context *context, const VkImageCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context, vkCreateImage(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-void Image::getMemoryRequirements(VkDevice device, VkMemoryRequirements *requirementsOut) const
-{
-    ASSERT(valid());
-    vkGetImageMemoryRequirements(device, mHandle, requirementsOut);
-}
-
-angle::Result Image::bindMemory(Context *context, const vk::DeviceMemory &deviceMemory)
-{
-    ASSERT(valid() && deviceMemory.valid());
-    ANGLE_VK_TRY(context,
-                 vkBindImageMemory(context->getDevice(), mHandle, deviceMemory.getHandle(), 0));
-    return angle::Result::Continue();
-}
-
-void Image::getSubresourceLayout(VkDevice device,
-                                 VkImageAspectFlagBits aspectMask,
-                                 uint32_t mipLevel,
-                                 uint32_t arrayLayer,
-                                 VkSubresourceLayout *outSubresourceLayout) const
-{
-    VkImageSubresource subresource;
-    subresource.aspectMask = aspectMask;
-    subresource.mipLevel   = mipLevel;
-    subresource.arrayLayer = arrayLayer;
-
-    vkGetImageSubresourceLayout(device, getHandle(), &subresource, outSubresourceLayout);
-}
-
-// ImageView implementation.
-ImageView::ImageView()
-{
-}
-
-void ImageView::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroyImageView(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result ImageView::init(Context *context, const VkImageViewCreateInfo &createInfo)
-{
-    ANGLE_VK_TRY(context, vkCreateImageView(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-// Semaphore implementation.
-Semaphore::Semaphore()
-{
-}
-
-void Semaphore::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroySemaphore(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result Semaphore::init(Context *context)
-{
-    ASSERT(!valid());
-
-    VkSemaphoreCreateInfo semaphoreInfo;
-    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    semaphoreInfo.pNext = nullptr;
-    semaphoreInfo.flags = 0;
-
-    ANGLE_VK_TRY(context,
-                 vkCreateSemaphore(context->getDevice(), &semaphoreInfo, nullptr, &mHandle));
-
-    return angle::Result::Continue();
-}
-
-// Framebuffer implementation.
-Framebuffer::Framebuffer()
-{
-}
-
-void Framebuffer::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroyFramebuffer(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result Framebuffer::init(Context *context, const VkFramebufferCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context,
-                 vkCreateFramebuffer(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-void Framebuffer::setHandle(VkFramebuffer handle)
-{
-    mHandle = handle;
-}
-
-// DeviceMemory implementation.
-DeviceMemory::DeviceMemory()
-{
-}
-
-void DeviceMemory::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkFreeMemory(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result DeviceMemory::allocate(Context *context, const VkMemoryAllocateInfo &allocInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context, vkAllocateMemory(context->getDevice(), &allocInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-angle::Result DeviceMemory::map(Context *context,
-                                VkDeviceSize offset,
-                                VkDeviceSize size,
-                                VkMemoryMapFlags flags,
-                                uint8_t **mapPointer) const
-{
-    ASSERT(valid());
-    ANGLE_VK_TRY(context, vkMapMemory(context->getDevice(), mHandle, offset, size, flags,
-                                      reinterpret_cast<void **>(mapPointer)));
-    return angle::Result::Continue();
-}
-
-void DeviceMemory::unmap(VkDevice device) const
-{
-    ASSERT(valid());
-    vkUnmapMemory(device, mHandle);
-}
-
-// RenderPass implementation.
-RenderPass::RenderPass()
-{
-}
-
-void RenderPass::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroyRenderPass(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result RenderPass::init(Context *context, const VkRenderPassCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context, vkCreateRenderPass(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-// Buffer implementation.
-Buffer::Buffer()
-{
-}
-
-void Buffer::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroyBuffer(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result Buffer::init(Context *context, const VkBufferCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context, vkCreateBuffer(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-angle::Result Buffer::bindMemory(Context *context, const DeviceMemory &deviceMemory)
-{
-    ASSERT(valid() && deviceMemory.valid());
-    ANGLE_VK_TRY(context,
-                 vkBindBufferMemory(context->getDevice(), mHandle, deviceMemory.getHandle(), 0));
-    return angle::Result::Continue();
-}
-
-void Buffer::getMemoryRequirements(VkDevice device, VkMemoryRequirements *memoryRequirementsOut)
-{
-    ASSERT(valid());
-    vkGetBufferMemoryRequirements(device, mHandle, memoryRequirementsOut);
-}
-
-// ShaderModule implementation.
-ShaderModule::ShaderModule()
-{
-}
-
-void ShaderModule::destroy(VkDevice device)
-{
-    if (mHandle != VK_NULL_HANDLE)
-    {
-        vkDestroyShaderModule(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result ShaderModule::init(Context *context, const VkShaderModuleCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context,
-                 vkCreateShaderModule(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-// Pipeline implementation.
-Pipeline::Pipeline()
-{
-}
-
-void Pipeline::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroyPipeline(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result Pipeline::initGraphics(Context *context,
-                                     const VkGraphicsPipelineCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context, vkCreateGraphicsPipelines(context->getDevice(), VK_NULL_HANDLE, 1,
-                                                    &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-// PipelineLayout implementation.
-PipelineLayout::PipelineLayout()
-{
-}
-
-void PipelineLayout::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroyPipelineLayout(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result PipelineLayout::init(Context *context, const VkPipelineLayoutCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context,
-                 vkCreatePipelineLayout(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-// DescriptorSetLayout implementation.
-DescriptorSetLayout::DescriptorSetLayout()
-{
-}
-
-void DescriptorSetLayout::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroyDescriptorSetLayout(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result DescriptorSetLayout::init(Context *context,
-                                        const VkDescriptorSetLayoutCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context,
-                 vkCreateDescriptorSetLayout(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-// DescriptorPool implementation.
-DescriptorPool::DescriptorPool()
-{
-}
-
-void DescriptorPool::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroyDescriptorPool(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result DescriptorPool::init(Context *context, const VkDescriptorPoolCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context,
-                 vkCreateDescriptorPool(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-angle::Result DescriptorPool::allocateDescriptorSets(Context *context,
-                                                     const VkDescriptorSetAllocateInfo &allocInfo,
-                                                     VkDescriptorSet *descriptorSetsOut)
-{
-    ASSERT(valid());
-    ANGLE_VK_TRY(context,
-                 vkAllocateDescriptorSets(context->getDevice(), &allocInfo, descriptorSetsOut));
-    return angle::Result::Continue();
-}
-
-angle::Result DescriptorPool::freeDescriptorSets(Context *context,
-                                                 uint32_t descriptorSetCount,
-                                                 const VkDescriptorSet *descriptorSets)
-{
-    ASSERT(valid());
-    ASSERT(descriptorSetCount > 0);
-    ANGLE_VK_TRY(context, vkFreeDescriptorSets(context->getDevice(), mHandle, descriptorSetCount,
-                                               descriptorSets));
-    return angle::Result::Continue();
-}
-
-// Sampler implementation.
-Sampler::Sampler()
-{
-}
-
-void Sampler::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroySampler(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result Sampler::init(Context *context, const VkSamplerCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context, vkCreateSampler(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-// Fence implementation.
-Fence::Fence()
-{
-}
-
-void Fence::destroy(VkDevice device)
-{
-    if (valid())
-    {
-        vkDestroyFence(device, mHandle, nullptr);
-        mHandle = VK_NULL_HANDLE;
-    }
-}
-
-angle::Result Fence::init(Context *context, const VkFenceCreateInfo &createInfo)
-{
-    ASSERT(!valid());
-    ANGLE_VK_TRY(context, vkCreateFence(context->getDevice(), &createInfo, nullptr, &mHandle));
-    return angle::Result::Continue();
-}
-
-VkResult Fence::getStatus(VkDevice device) const
-{
-    return vkGetFenceStatus(device, mHandle);
-}
-
 // MemoryProperties implementation.
-MemoryProperties::MemoryProperties() : mMemoryProperties{0}
-{
-}
+MemoryProperties::MemoryProperties() : mMemoryProperties{} {}
 
 void MemoryProperties::init(VkPhysicalDevice physicalDevice)
 {
@@ -1013,13 +299,14 @@ void MemoryProperties::init(VkPhysicalDevice physicalDevice)
 
 void MemoryProperties::destroy()
 {
-    mMemoryProperties = {0};
+    mMemoryProperties = {};
 }
 
 angle::Result MemoryProperties::findCompatibleMemoryIndex(
     Context *context,
     const VkMemoryRequirements &memoryRequirements,
-    VkMemoryPropertyFlags memoryPropertyFlags,
+    VkMemoryPropertyFlags requestedMemoryPropertyFlags,
+    VkMemoryPropertyFlags *memoryPropertyFlagsOut,
     uint32_t *typeIndexOut) const
 {
     ASSERT(mMemoryProperties.memoryTypeCount > 0 && mMemoryProperties.memoryTypeCount <= 32);
@@ -1032,23 +319,22 @@ angle::Result MemoryProperties::findCompatibleMemoryIndex(
     {
         ASSERT(memoryIndex < mMemoryProperties.memoryTypeCount);
 
-        if ((mMemoryProperties.memoryTypes[memoryIndex].propertyFlags & memoryPropertyFlags) ==
-            memoryPropertyFlags)
+        if ((mMemoryProperties.memoryTypes[memoryIndex].propertyFlags &
+             requestedMemoryPropertyFlags) == requestedMemoryPropertyFlags)
         {
-            *typeIndexOut = static_cast<uint32_t>(memoryIndex);
-            return angle::Result::Continue();
+            *memoryPropertyFlagsOut = mMemoryProperties.memoryTypes[memoryIndex].propertyFlags;
+            *typeIndexOut           = static_cast<uint32_t>(memoryIndex);
+            return angle::Result::Continue;
         }
     }
 
     // TODO(jmadill): Add error message to error.
-    context->handleError(VK_ERROR_INCOMPATIBLE_DRIVER, __FILE__, __LINE__);
-    return angle::Result::Stop();
+    context->handleError(VK_ERROR_INCOMPATIBLE_DRIVER, __FILE__, ANGLE_FUNCTION, __LINE__);
+    return angle::Result::Stop;
 }
 
 // StagingBuffer implementation.
-StagingBuffer::StagingBuffer() : mSize(0)
-{
-}
+StagingBuffer::StagingBuffer() : mSize(0) {}
 
 void StagingBuffer::destroy(VkDevice device)
 {
@@ -1057,11 +343,18 @@ void StagingBuffer::destroy(VkDevice device)
     mSize = 0;
 }
 
-angle::Result StagingBuffer::init(Context *context, VkDeviceSize size, StagingUsage usage)
+angle::Result StagingBuffer::init(ContextVk *contextVk, VkDeviceSize size, StagingUsage usage)
 {
-    VkBufferCreateInfo createInfo;
+    // TODO: Remove with anglebug.com/2162: Vulkan: Implement device memory sub-allocation
+    // Check if we have too many resources allocated already and need to free some before allocating
+    // more and (possibly) exceeding the device's limits.
+    if (contextVk->shouldFlush())
+    {
+        ANGLE_TRY(contextVk->flushImpl(nullptr));
+    }
+
+    VkBufferCreateInfo createInfo    = {};
     createInfo.sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    createInfo.pNext                 = nullptr;
     createInfo.flags                 = 0;
     createInfo.size                  = size;
     createInfo.usage                 = GetStagingBufferUsageFlags(usage);
@@ -1072,32 +365,53 @@ angle::Result StagingBuffer::init(Context *context, VkDeviceSize size, StagingUs
     VkMemoryPropertyFlags flags =
         (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    ANGLE_TRY(mBuffer.init(context, createInfo));
-    ANGLE_TRY(AllocateBufferMemory(context, flags, &mBuffer, &mDeviceMemory));
+    ANGLE_VK_TRY(contextVk, mBuffer.init(contextVk->getDevice(), createInfo));
+    VkMemoryPropertyFlags flagsOut = 0;
+    ANGLE_TRY(AllocateBufferMemory(contextVk, flags, &flagsOut, nullptr, &mBuffer, &mDeviceMemory));
     mSize = static_cast<size_t>(size);
-    return angle::Result::Continue();
+    return angle::Result::Continue;
 }
 
-void StagingBuffer::dumpResources(Serial serial, std::vector<vk::GarbageObject> *garbageQueue)
+void StagingBuffer::release(ContextVk *contextVk)
 {
-    mBuffer.dumpResources(serial, garbageQueue);
-    mDeviceMemory.dumpResources(serial, garbageQueue);
+    contextVk->addGarbage(&mBuffer);
+    contextVk->addGarbage(&mDeviceMemory);
 }
 
 angle::Result AllocateBufferMemory(vk::Context *context,
-                                   VkMemoryPropertyFlags memoryPropertyFlags,
+                                   VkMemoryPropertyFlags requestedMemoryPropertyFlags,
+                                   VkMemoryPropertyFlags *memoryPropertyFlagsOut,
+                                   const void *extraAllocationInfo,
                                    Buffer *buffer,
                                    DeviceMemory *deviceMemoryOut)
 {
-    return AllocateBufferOrImageMemory(context, memoryPropertyFlags, buffer, deviceMemoryOut);
+    return AllocateBufferOrImageMemory(context, requestedMemoryPropertyFlags,
+                                       memoryPropertyFlagsOut, extraAllocationInfo, buffer,
+                                       deviceMemoryOut);
 }
 
 angle::Result AllocateImageMemory(vk::Context *context,
                                   VkMemoryPropertyFlags memoryPropertyFlags,
+                                  const void *extraAllocationInfo,
                                   Image *image,
                                   DeviceMemory *deviceMemoryOut)
 {
-    return AllocateBufferOrImageMemory(context, memoryPropertyFlags, image, deviceMemoryOut);
+    VkMemoryPropertyFlags memoryPropertyFlagsOut = 0;
+    return AllocateBufferOrImageMemory(context, memoryPropertyFlags, &memoryPropertyFlagsOut,
+                                       extraAllocationInfo, image, deviceMemoryOut);
+}
+
+angle::Result AllocateImageMemoryWithRequirements(vk::Context *context,
+                                                  VkMemoryPropertyFlags memoryPropertyFlags,
+                                                  const VkMemoryRequirements &memoryRequirements,
+                                                  const void *extraAllocationInfo,
+                                                  Image *image,
+                                                  DeviceMemory *deviceMemoryOut)
+{
+    VkMemoryPropertyFlags memoryPropertyFlagsOut = 0;
+    return AllocateAndBindBufferOrImageMemory(context, memoryPropertyFlags, &memoryPropertyFlagsOut,
+                                              memoryRequirements, extraAllocationInfo, image,
+                                              deviceMemoryOut);
 }
 
 angle::Result InitShaderAndSerial(Context *context,
@@ -1105,98 +419,132 @@ angle::Result InitShaderAndSerial(Context *context,
                                   const uint32_t *shaderCode,
                                   size_t shaderCodeSize)
 {
-    VkShaderModuleCreateInfo createInfo;
-    createInfo.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.pNext    = nullptr;
-    createInfo.flags    = 0;
-    createInfo.codeSize = shaderCodeSize;
-    createInfo.pCode    = shaderCode;
+    VkShaderModuleCreateInfo createInfo = {};
+    createInfo.sType                    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.flags                    = 0;
+    createInfo.codeSize                 = shaderCodeSize;
+    createInfo.pCode                    = shaderCode;
 
-    ANGLE_TRY(shaderAndSerial->get().init(context, createInfo));
+    ANGLE_VK_TRY(context, shaderAndSerial->get().init(context->getDevice(), createInfo));
     shaderAndSerial->updateSerial(context->getRenderer()->issueShaderSerial());
-    return angle::Result::Continue();
+    return angle::Result::Continue;
 }
 
-// GarbageObject implementation.
-GarbageObject::GarbageObject()
-    : mSerial(), mHandleType(HandleType::Invalid), mHandle(VK_NULL_HANDLE)
+gl::TextureType Get2DTextureType(uint32_t layerCount, GLint samples)
 {
-}
-
-GarbageObject::GarbageObject(const GarbageObject &other) = default;
-
-GarbageObject &GarbageObject::operator=(const GarbageObject &other) = default;
-
-bool GarbageObject::destroyIfComplete(VkDevice device, Serial completedSerial)
-{
-    if (completedSerial >= mSerial)
+    if (layerCount > 1)
     {
-        destroy(device);
-        return true;
+        if (samples > 1)
+        {
+            return gl::TextureType::_2DMultisampleArray;
+        }
+        else
+        {
+            return gl::TextureType::_2DArray;
+        }
     }
-
-    return false;
+    else
+    {
+        if (samples > 1)
+        {
+            return gl::TextureType::_2DMultisample;
+        }
+        else
+        {
+            return gl::TextureType::_2D;
+        }
+    }
 }
 
+GarbageObject::GarbageObject() : mHandleType(HandleType::Invalid), mHandle(VK_NULL_HANDLE) {}
+
+GarbageObject::GarbageObject(HandleType handleType, GarbageHandle handle)
+    : mHandleType(handleType), mHandle(handle)
+{}
+
+GarbageObject::GarbageObject(GarbageObject &&other) : GarbageObject()
+{
+    *this = std::move(other);
+}
+
+GarbageObject &GarbageObject::operator=(GarbageObject &&rhs)
+{
+    std::swap(mHandle, rhs.mHandle);
+    std::swap(mHandleType, rhs.mHandleType);
+    return *this;
+}
+
+// GarbageObject implementation
+// Using c-style casts here to avoid conditional compile for MSVC 32-bit
+//  which fails to compile with reinterpret_cast, requiring static_cast.
 void GarbageObject::destroy(VkDevice device)
 {
     switch (mHandleType)
     {
         case HandleType::Semaphore:
-            vkDestroySemaphore(device, reinterpret_cast<VkSemaphore>(mHandle), nullptr);
+            vkDestroySemaphore(device, (VkSemaphore)mHandle, nullptr);
             break;
         case HandleType::CommandBuffer:
             // Command buffers are pool allocated.
             UNREACHABLE();
             break;
+        case HandleType::Event:
+            vkDestroyEvent(device, (VkEvent)mHandle, nullptr);
+            break;
         case HandleType::Fence:
-            vkDestroyFence(device, reinterpret_cast<VkFence>(mHandle), nullptr);
+            vkDestroyFence(device, (VkFence)mHandle, nullptr);
             break;
         case HandleType::DeviceMemory:
-            vkFreeMemory(device, reinterpret_cast<VkDeviceMemory>(mHandle), nullptr);
+            vkFreeMemory(device, (VkDeviceMemory)mHandle, nullptr);
             break;
         case HandleType::Buffer:
-            vkDestroyBuffer(device, reinterpret_cast<VkBuffer>(mHandle), nullptr);
+            vkDestroyBuffer(device, (VkBuffer)mHandle, nullptr);
+            break;
+        case HandleType::BufferView:
+            vkDestroyBufferView(device, (VkBufferView)mHandle, nullptr);
             break;
         case HandleType::Image:
-            vkDestroyImage(device, reinterpret_cast<VkImage>(mHandle), nullptr);
+            vkDestroyImage(device, (VkImage)mHandle, nullptr);
             break;
         case HandleType::ImageView:
-            vkDestroyImageView(device, reinterpret_cast<VkImageView>(mHandle), nullptr);
+            vkDestroyImageView(device, (VkImageView)mHandle, nullptr);
             break;
         case HandleType::ShaderModule:
-            vkDestroyShaderModule(device, reinterpret_cast<VkShaderModule>(mHandle), nullptr);
+            vkDestroyShaderModule(device, (VkShaderModule)mHandle, nullptr);
             break;
         case HandleType::PipelineLayout:
-            vkDestroyPipelineLayout(device, reinterpret_cast<VkPipelineLayout>(mHandle), nullptr);
+            vkDestroyPipelineLayout(device, (VkPipelineLayout)mHandle, nullptr);
             break;
         case HandleType::RenderPass:
-            vkDestroyRenderPass(device, reinterpret_cast<VkRenderPass>(mHandle), nullptr);
+            vkDestroyRenderPass(device, (VkRenderPass)mHandle, nullptr);
             break;
         case HandleType::Pipeline:
-            vkDestroyPipeline(device, reinterpret_cast<VkPipeline>(mHandle), nullptr);
+            vkDestroyPipeline(device, (VkPipeline)mHandle, nullptr);
             break;
         case HandleType::DescriptorSetLayout:
-            vkDestroyDescriptorSetLayout(device, reinterpret_cast<VkDescriptorSetLayout>(mHandle),
-                                         nullptr);
+            vkDestroyDescriptorSetLayout(device, (VkDescriptorSetLayout)mHandle, nullptr);
             break;
         case HandleType::Sampler:
-            vkDestroySampler(device, reinterpret_cast<VkSampler>(mHandle), nullptr);
+            vkDestroySampler(device, (VkSampler)mHandle, nullptr);
             break;
         case HandleType::DescriptorPool:
-            vkDestroyDescriptorPool(device, reinterpret_cast<VkDescriptorPool>(mHandle), nullptr);
+            vkDestroyDescriptorPool(device, (VkDescriptorPool)mHandle, nullptr);
             break;
         case HandleType::Framebuffer:
-            vkDestroyFramebuffer(device, reinterpret_cast<VkFramebuffer>(mHandle), nullptr);
+            vkDestroyFramebuffer(device, (VkFramebuffer)mHandle, nullptr);
             break;
         case HandleType::CommandPool:
-            vkDestroyCommandPool(device, reinterpret_cast<VkCommandPool>(mHandle), nullptr);
+            vkDestroyCommandPool(device, (VkCommandPool)mHandle, nullptr);
+            break;
+        case HandleType::QueryPool:
+            vkDestroyQueryPool(device, (VkQueryPool)mHandle, nullptr);
             break;
         default:
             UNREACHABLE();
             break;
     }
 }
+
 }  // namespace vk
 
 namespace gl_vk
@@ -1224,10 +572,10 @@ VkSamplerMipmapMode GetSamplerMipmapMode(const GLenum filter)
 {
     switch (filter)
     {
-        case GL_LINEAR:
         case GL_LINEAR_MIPMAP_LINEAR:
         case GL_NEAREST_MIPMAP_LINEAR:
             return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        case GL_LINEAR:
         case GL_NEAREST:
         case GL_NEAREST_MIPMAP_NEAREST:
         case GL_LINEAR_MIPMAP_NEAREST:
@@ -1286,7 +634,7 @@ VkPrimitiveTopology GetPrimitiveTopology(gl::PrimitiveMode mode)
     }
 }
 
-VkCullModeFlags GetCullMode(const gl::RasterizerState &rasterState)
+VkCullModeFlagBits GetCullMode(const gl::RasterizerState &rasterState)
 {
     if (!rasterState.cullFace)
     {
@@ -1367,18 +715,29 @@ VkComponentSwizzle GetSwizzle(const GLenum swizzle)
     }
 }
 
-VkIndexType GetIndexType(GLenum elementType)
+VkCompareOp GetCompareOp(const GLenum compareFunc)
 {
-    switch (elementType)
+    switch (compareFunc)
     {
-        case GL_UNSIGNED_BYTE:
-        case GL_UNSIGNED_SHORT:
-            return VK_INDEX_TYPE_UINT16;
-        case GL_UNSIGNED_INT:
-            return VK_INDEX_TYPE_UINT32;
+        case GL_NEVER:
+            return VK_COMPARE_OP_NEVER;
+        case GL_LESS:
+            return VK_COMPARE_OP_LESS;
+        case GL_EQUAL:
+            return VK_COMPARE_OP_EQUAL;
+        case GL_LEQUAL:
+            return VK_COMPARE_OP_LESS_OR_EQUAL;
+        case GL_GREATER:
+            return VK_COMPARE_OP_GREATER;
+        case GL_NOTEQUAL:
+            return VK_COMPARE_OP_NOT_EQUAL;
+        case GL_GEQUAL:
+            return VK_COMPARE_OP_GREATER_OR_EQUAL;
+        case GL_ALWAYS:
+            return VK_COMPARE_OP_ALWAYS;
         default:
             UNREACHABLE();
-            return VK_INDEX_TYPE_MAX_ENUM;
+            return VK_COMPARE_OP_ALWAYS;
     }
 }
 
@@ -1401,9 +760,14 @@ VkImageType GetImageType(gl::TextureType textureType)
     switch (textureType)
     {
         case gl::TextureType::_2D:
-            return VK_IMAGE_TYPE_2D;
+        case gl::TextureType::_2DArray:
+        case gl::TextureType::_2DMultisample:
+        case gl::TextureType::_2DMultisampleArray:
         case gl::TextureType::CubeMap:
+        case gl::TextureType::External:
             return VK_IMAGE_TYPE_2D;
+        case gl::TextureType::_3D:
+            return VK_IMAGE_TYPE_3D;
         default:
             // We will need to implement all the texture types for ES3+.
             UNIMPLEMENTED();
@@ -1416,7 +780,14 @@ VkImageViewType GetImageViewType(gl::TextureType textureType)
     switch (textureType)
     {
         case gl::TextureType::_2D:
+        case gl::TextureType::_2DMultisample:
+        case gl::TextureType::External:
             return VK_IMAGE_VIEW_TYPE_2D;
+        case gl::TextureType::_2DArray:
+        case gl::TextureType::_2DMultisampleArray:
+            return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+        case gl::TextureType::_3D:
+            return VK_IMAGE_VIEW_TYPE_3D;
         case gl::TextureType::CubeMap:
             return VK_IMAGE_VIEW_TYPE_CUBE;
         default:
@@ -1431,5 +802,102 @@ VkColorComponentFlags GetColorComponentFlags(bool red, bool green, bool blue, bo
     return (red ? VK_COLOR_COMPONENT_R_BIT : 0) | (green ? VK_COLOR_COMPONENT_G_BIT : 0) |
            (blue ? VK_COLOR_COMPONENT_B_BIT : 0) | (alpha ? VK_COLOR_COMPONENT_A_BIT : 0);
 }
+
+VkShaderStageFlags GetShaderStageFlags(gl::ShaderBitSet activeShaders)
+{
+    VkShaderStageFlags flags = 0;
+    for (const gl::ShaderType shaderType : activeShaders)
+    {
+        flags |= kShaderStageMap[shaderType];
+    }
+    return flags;
+}
+
+void GetViewport(const gl::Rectangle &viewport,
+                 float nearPlane,
+                 float farPlane,
+                 bool invertViewport,
+                 GLint renderAreaHeight,
+                 VkViewport *viewportOut)
+{
+    viewportOut->x        = static_cast<float>(viewport.x);
+    viewportOut->y        = static_cast<float>(viewport.y);
+    viewportOut->width    = static_cast<float>(viewport.width);
+    viewportOut->height   = static_cast<float>(viewport.height);
+    viewportOut->minDepth = gl::clamp01(nearPlane);
+    viewportOut->maxDepth = gl::clamp01(farPlane);
+
+    if (invertViewport)
+    {
+        viewportOut->y      = static_cast<float>(renderAreaHeight - viewport.y);
+        viewportOut->height = -viewportOut->height;
+    }
+}
+
+void GetExtentsAndLayerCount(gl::TextureType textureType,
+                             const gl::Extents &extents,
+                             VkExtent3D *extentsOut,
+                             uint32_t *layerCountOut)
+{
+    extentsOut->width  = extents.width;
+    extentsOut->height = extents.height;
+
+    switch (textureType)
+    {
+        case gl::TextureType::CubeMap:
+            extentsOut->depth = 1;
+            *layerCountOut    = gl::kCubeFaceCount;
+            break;
+
+        case gl::TextureType::_2DArray:
+        case gl::TextureType::_2DMultisampleArray:
+            extentsOut->depth = 1;
+            *layerCountOut    = extents.depth;
+            break;
+
+        default:
+            extentsOut->depth = extents.depth;
+            *layerCountOut    = 1;
+            break;
+    }
+}
 }  // namespace gl_vk
+
+namespace vk_gl
+{
+void AddSampleCounts(VkSampleCountFlags sampleCounts, gl::SupportedSampleSet *setOut)
+{
+    // The possible bits are VK_SAMPLE_COUNT_n_BIT = n, with n = 1 << b.  At the time of this
+    // writing, b is in [0, 6], however, we test all 32 bits in case the enum is extended.
+    for (size_t bit : angle::BitSet32<32>(sampleCounts & kSupportedSampleCounts))
+    {
+        setOut->insert(static_cast<GLuint>(1 << bit));
+    }
+}
+
+GLuint GetMaxSampleCount(VkSampleCountFlags sampleCounts)
+{
+    GLuint maxCount = 0;
+    for (size_t bit : angle::BitSet32<32>(sampleCounts & kSupportedSampleCounts))
+    {
+        maxCount = static_cast<GLuint>(1 << bit);
+    }
+    return maxCount;
+}
+
+GLuint GetSampleCount(VkSampleCountFlags supportedCounts, GLuint requestedCount)
+{
+    for (size_t bit : angle::BitSet32<32>(supportedCounts & kSupportedSampleCounts))
+    {
+        GLuint sampleCount = static_cast<GLuint>(1 << bit);
+        if (sampleCount >= requestedCount)
+        {
+            return sampleCount;
+        }
+    }
+
+    UNREACHABLE();
+    return 0;
+}
+}  // namespace vk_gl
 }  // namespace rx
