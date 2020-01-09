@@ -2587,7 +2587,10 @@ constexpr const ImmutableString yuv_2_rgb("yuv_2_rgb");
 namespace BuiltInVariable
 {
 
-constexpr const unsigned int kArraySize4[1] = {4};
+const unsigned int four = 4;
+constexpr const unsigned int *kArraySize4 = &four;
+// Causes MSVC to crap itself
+//constexpr const unsigned int kArraySize4[1] = {4};
 
 constexpr const TVariable kangle_BaseInstance(
     BuiltInId::angle_BaseInstance,
