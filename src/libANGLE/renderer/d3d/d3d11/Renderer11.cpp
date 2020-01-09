@@ -674,7 +674,23 @@ HRESULT Renderer11::callD3D11On12CreateDevice(PFN_D3D12_CREATE_DEVICE createDevi
                                               bool debug)
 {
     angle::ComPtr<IDXGIFactory4> factory;
+
+    #if defined(ANGLE_ENABLE_WINDOWS_UWP)
     HRESULT result = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
+    #else
+
+    typedef HRESULT (*CreateDXGIFactory1_func)( REFIID riid, void   **ppFactory);
+
+    typedef HRESULT(WINAPI *PFN_CREATE_DXGI_FACTORY1)(REFIID riid, void **ppFactory);
+
+    PFN_CREATE_DXGI_FACTORY1 create = reinterpret_cast<PFN_CREATE_DXGI_FACTORY1>(
+                 GetProcAddress(mDxgiModule,"CreateDXGIFactory1") );
+    if (!create)
+       return TYPE_E_DLLFUNCTIONNOTFOUND;
+
+    HRESULT result = create(IID_PPV_ARGS(&factory));
+
+    #endif
     if (FAILED(result))
     {
         return result;
