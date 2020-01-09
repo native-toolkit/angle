@@ -123,7 +123,7 @@ const char *EGLAPIENTRY EGL_QueryString(EGLDisplay dpy, EGLint name)
     Thread *thread = egl::GetCurrentThread();
 
     egl::Display *display = static_cast<egl::Display *>(dpy);
-    if (!(display == EGL_NO_DISPLAY && name == EGL_EXTENSIONS))
+    if (!(display == EGL_NO_DISPLAY && (name == EGL_EXTENSIONS || name ==EGL_VERSION) ))
     {
         ANGLE_EGL_TRY_RETURN(thread, ValidateDisplay(display), "eglQueryString",
                              GetDisplayIfValid(display), nullptr);
