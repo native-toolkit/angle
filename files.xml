@@ -30,7 +30,7 @@
    <compilerflag value="-I${ANGLE_DIR}/src" />
    <compilerflag value="-I${ANGLE_DIR}/src/common/third_party/base" />
    <compilerflag value="-I${ANGLE_DIR}/src/common/third_party" />
-   <compilerflag value="-DANGLE_ENABLE_GLSL" />
+   <!--<compilerflag value="-DANGLE_ENABLE_GLSL" />-->
    <compilerflag value="-DANGLE_ENABLE_D3D9" unless="winrt"/>
    <compilerflag value="-DANGLE_ENABLE_D3D11" />
    <compilerflag value="-DANGLE_ENABLE_HLSL" />
@@ -43,36 +43,64 @@
 
 
    <cache value="1" />
-
-
       <file name="src/libANGLE/angletypes.cpp" />
       <file name="src/libANGLE/AttributeMap.cpp" />
+      <file name="src/libANGLE/BlobCache.cpp" />
       <file name="src/libANGLE/Buffer.cpp" />
       <file name="src/libANGLE/Caps.cpp" />
+      <!--
+      <file name="src/libANGLE/capture_gles_1_0_autogen.cpp" />
+      <file name="src/libANGLE/capture_gles_1_0_params.cpp" />
+      <file name="src/libANGLE/capture_gles_2_0_autogen.cpp" />
+      <file name="src/libANGLE/capture_gles_2_0_params.cpp" />
+      <file name="src/libANGLE/capture_gles_3_0_autogen.cpp" />
+      <file name="src/libANGLE/capture_gles_3_0_params.cpp" />
+      <file name="src/libANGLE/capture_gles_3_1_autogen.cpp" />
+      <file name="src/libANGLE/capture_gles_3_1_params.cpp" />
+      <file name="src/libANGLE/capture_gles_3_2_autogen.cpp" />
+      <file name="src/libANGLE/capture_gles_3_2_params.cpp" />
+      <file name="src/libANGLE/capture_gles_ext_autogen.cpp" />
+      <file name="src/libANGLE/capture_gles_ext_params.cpp" />
+      -->
       <file name="src/libANGLE/Compiler.cpp" />
       <file name="src/libANGLE/Config.cpp" />
       <file name="src/libANGLE/Context.cpp" />
-      <file name="src/libANGLE/ContextState.cpp" />
+      <file name="src/libANGLE/Context_gl.cpp" />
+      <file name="src/libANGLE/Context_gles_1_0.cpp" />
       <file name="src/libANGLE/Debug.cpp" />
       <file name="src/libANGLE/Device.cpp" />
       <file name="src/libANGLE/Display.cpp" />
+      <file name="src/libANGLE/EGLSync.cpp" />
+      <file name="src/libANGLE/entry_points_enum_autogen.cpp" />
       <file name="src/libANGLE/Error.cpp" />
       <file name="src/libANGLE/es3_copy_conversion_table_autogen.cpp" />
       <file name="src/libANGLE/Fence.cpp" />
       <file name="src/libANGLE/formatutils.cpp" />
       <file name="src/libANGLE/format_map_autogen.cpp" />
+      <file name="src/libANGLE/format_map_desktop.cpp" />
       <file name="src/libANGLE/Framebuffer.cpp" />
       <file name="src/libANGLE/FramebufferAttachment.cpp" />
+      <file name="src/libANGLE/FrameCapture_mock.cpp" />
+      <!--<file name="src/libANGLE/FrameCapture.cpp" />
+      <file name="src/libANGLE/frame_capture_replay_autogen.cpp" />
+      <file name="src/libANGLE/frame_capture_utils_autogen.cpp" />-->
+      <file name="src/libANGLE/GLES1Renderer.cpp" />
+      <file name="src/libANGLE/GLES1State.cpp" />
+      <file name="src/libANGLE/gl_enum_utils.cpp" />
+      <file name="src/libANGLE/gl_enum_utils_autogen.cpp" />
       <file name="src/libANGLE/HandleAllocator.cpp" />
       <file name="src/libANGLE/HandleRangeAllocator.cpp" />
       <file name="src/libANGLE/Image.cpp" />
       <file name="src/libANGLE/ImageIndex.cpp" />
       <file name="src/libANGLE/IndexRangeCache.cpp" />
       <file name="src/libANGLE/LoggingAnnotator.cpp" />
+      <file name="src/libANGLE/MemoryObject.cpp" />
       <file name="src/libANGLE/MemoryProgramCache.cpp" />
       <file name="src/libANGLE/Observer.cpp" />
-      <file name="src/libANGLE/LoggingAnnotator.cpp" />
-      <file name="src/libANGLE/params.cpp" />
+      <file name="src/libANGLE/Overlay.cpp" />
+      <file name="src/libANGLE/OverlayWidgets.cpp" />
+      <file name="src/libANGLE/Overlay_autogen.cpp" />
+      <file name="src/libANGLE/Overlay_font_autogen.cpp" />
       <file name="src/libANGLE/Path.cpp" />
       <file name="src/libANGLE/Platform.cpp" />
       <file name="src/libANGLE/Program.cpp" />
@@ -85,20 +113,25 @@
       <file name="src/libANGLE/renderer/ContextImpl.cpp" />
       <file name="src/libANGLE/renderer/d3d/BufferD3D.cpp" />
       <file name="src/libANGLE/renderer/d3d/CompilerD3D.cpp" />
+
       <file name="src/libANGLE/renderer/d3d/d3d11/Blit11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/Buffer11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/Clear11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/Context11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/DebugAnnotator11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/dxgi_format_map_autogen.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d11/dxgi_support_table.cpp" />
+      <file name="src/libANGLE/renderer/d3d/d3d11/dxgi_support_table_autogen.cpp" />
+      <file name="src/libANGLE/renderer/d3d/d3d11/ExternalImageSiblingImpl11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/Fence11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/formatutils11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/Framebuffer11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/Image11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/IndexBuffer11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/InputLayoutCache.cpp" />
+      <file name="src/libANGLE/renderer/d3d/d3d11/MappedSubresourceVerifier11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/PixelTransfer11.cpp" />
+      <file name="src/libANGLE/renderer/d3d/d3d11/Program11.cpp" />
+      <file name="src/libANGLE/renderer/d3d/d3d11/ProgramPipeline11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/Query11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/Renderer11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/renderer11_utils.cpp" />
@@ -107,6 +140,7 @@
       <file name="src/libANGLE/renderer/d3d/d3d11/ResourceManager11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/ShaderExecutable11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/StateManager11.cpp" />
+      <file name="src/libANGLE/renderer/d3d/d3d11/StreamProducerD3DTexture.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/SwapChain11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/TextureStorage11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/texture_format_table.cpp" />
@@ -115,15 +149,17 @@
       <file name="src/libANGLE/renderer/d3d/d3d11/Trim11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/VertexArray11.cpp" />
       <file name="src/libANGLE/renderer/d3d/d3d11/VertexBuffer11.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d11/win32/NativeWindow11Win32.cpp" unless="winrt"/>
-      <file name="src/libANGLE/renderer/d3d/d3d11/StreamProducerD3DTexture.cpp" />
-      <file name="src/libANGLE/renderer/d3d/d3d11/ProgramPipeline11.cpp" />
+
+      <section unless="winrt" >
+      <file name="src/libANGLE/renderer/d3d/d3d11/converged/CompositorNativeWindow11.cpp" />
+      <file name="src/libANGLE/renderer/d3d/d3d11/win32/NativeWindow11Win32.cpp" />
+      </section>
 
       <section if="winrt" >
-         <file name="src/libANGLE/renderer/d3d/d3d11/winrt/CoreWindowNativeWindow.cpp" />
-         <file name="src/libANGLE/renderer/d3d/d3d11/winrt/InspectableNativeWindow.cpp" />
-         <file name="src/libANGLE/renderer/d3d/d3d11/winrt/NativeWindow11WinRT.cpp" />
-         <file name="src/libANGLE/renderer/d3d/d3d11/winrt/SwapChainPanelNativeWindow.cpp" />
+      <file name="src/libANGLE/renderer/d3d/d3d11/winrt/CoreWindowNativeWindow.cpp" />
+      <file name="src/libANGLE/renderer/d3d/d3d11/winrt/InspectableNativeWindow.cpp" />
+      <file name="src/libANGLE/renderer/d3d/d3d11/winrt/NativeWindow11WinRT.cpp" />
+      <file name="src/libANGLE/renderer/d3d/d3d11/winrt/SwapChainPanelNativeWindow.cpp" />
       </section>
 
       <section unless="winrt" >
@@ -152,6 +188,7 @@
       <file name="src/libANGLE/renderer/d3d/DeviceD3D.cpp" />
       <file name="src/libANGLE/renderer/d3d/DisplayD3D.cpp" />
       <file name="src/libANGLE/renderer/d3d/DynamicHLSL.cpp" />
+      <file name="src/libANGLE/renderer/d3d/DynamicImage2DHLSL.cpp" />
       <file name="src/libANGLE/renderer/d3d/EGLImageD3D.cpp" />
       <file name="src/libANGLE/renderer/d3d/FramebufferD3D.cpp" />
       <file name="src/libANGLE/renderer/d3d/HLSLCompiler.cpp" />
@@ -170,16 +207,163 @@
       <file name="src/libANGLE/renderer/d3d/TextureD3D.cpp" />
       <file name="src/libANGLE/renderer/d3d/VertexBuffer.cpp" />
       <file name="src/libANGLE/renderer/d3d/VertexDataManager.cpp" />
+
       <file name="src/libANGLE/renderer/DeviceImpl.cpp" />
       <file name="src/libANGLE/renderer/DisplayImpl.cpp" />
       <file name="src/libANGLE/renderer/driver_utils.cpp" />
       <file name="src/libANGLE/renderer/Format_table_autogen.cpp" />
+
+      <!--<file name="src/libANGLE/renderer/glslang_wrapper_utils.cpp" />-->
       <file name="src/libANGLE/renderer/load_functions_table_autogen.cpp" />
+
+      <section if="false" >
+      <file name="src/libANGLE/renderer/gl/BlitGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/BufferGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/cgl/ContextCGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/cgl/DeviceCGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/cgl/IOSurfaceSurfaceCGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/cgl/PbufferSurfaceCGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/cgl/RendererCGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/ClearMultiviewGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/CompilerGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/ContextGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/DispatchTableGL_autogen.cpp" />
+      <file name="src/libANGLE/renderer/gl/DisplayGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/android/DisplayAndroid.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/android/NativeBufferImageSiblingAndroid.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/ContextEGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/DisplayEGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/egl_utils.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/FunctionsEGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/FunctionsEGLDL.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/ImageEGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/ozone/DisplayOzone.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/ozone/SurfaceOzone.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/PbufferSurfaceEGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/RendererEGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/SurfaceEGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/SyncEGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/egl/WindowSurfaceEGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/FenceNVGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/formatutilsgl.cpp" />
+      <file name="src/libANGLE/renderer/gl/FramebufferGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/FunctionsGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/glx/DisplayGLX.cpp" />
+      <file name="src/libANGLE/renderer/gl/glx/FunctionsGLX.cpp" />
+      <file name="src/libANGLE/renderer/gl/glx/PbufferSurfaceGLX.cpp" />
+      <file name="src/libANGLE/renderer/gl/glx/RendererGLX.cpp" />
+      <file name="src/libANGLE/renderer/gl/glx/WindowSurfaceGLX.cpp" />
+      <file name="src/libANGLE/renderer/gl/ImageGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/MemoryObjectGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/null_functions.cpp" />
+      <file name="src/libANGLE/renderer/gl/PathGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/ProgramGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/ProgramPipelineGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/QueryGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/RenderbufferGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/RendererGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/renderergl_utils.cpp" />
+      <file name="src/libANGLE/renderer/gl/SamplerGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/SemaphoreGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/ShaderGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/StateManagerGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/SurfaceGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/SyncGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/TextureGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/TransformFeedbackGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/VertexArrayGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/wgl/ContextWGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/wgl/D3DTextureSurfaceWGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/wgl/DisplayWGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/wgl/DXGISwapChainWindowSurfaceWGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/wgl/FunctionsWGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/wgl/PbufferSurfaceWGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/wgl/RendererWGL.cpp" />
+      <file name="src/libANGLE/renderer/gl/wgl/wgl_utils.cpp" />
+      <file name="src/libANGLE/renderer/gl/wgl/WindowSurfaceWGL.cpp" />
+      <file name="src/libANGLE/renderer/null/BufferNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/CompilerNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/ContextNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/DeviceNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/DisplayNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/FenceNVNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/FramebufferNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/ImageNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/PathNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/ProgramNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/ProgramPipelineNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/QueryNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/RenderbufferNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/SamplerNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/ShaderNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/SurfaceNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/SyncNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/TextureNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/TransformFeedbackNULL.cpp" />
+      <file name="src/libANGLE/renderer/null/VertexArrayNULL.cpp" />
+      </section>
+
+
+      <file name="src/libANGLE/renderer/QueryImpl.cpp" />
       <file name="src/libANGLE/renderer/renderer_utils.cpp" />
+      <file name="src/libANGLE/renderer/ShaderImpl.cpp" />
       <file name="src/libANGLE/renderer/SurfaceImpl.cpp" />
       <file name="src/libANGLE/renderer/TextureImpl.cpp" />
+
+      <section if="false">
+      <file name="src/libANGLE/renderer/vulkan/android/DisplayVkAndroid.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/android/HardwareBufferImageSiblingVkAndroid.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/android/WindowSurfaceVkAndroid.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/BufferVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/CommandGraph.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/CompilerVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/ContextVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/DeviceVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/DisplayVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/FenceNVVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/FramebufferVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/fuchsia/DisplayVkFuchsia.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/fuchsia/WindowSurfaceVkFuchsia.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/ggp/DisplayVkGGP.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/ggp/WindowSurfaceVkGGP.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/GlslangWrapperVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/ImageVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/MemoryObjectVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/OverlayVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/PersistentCommandPool.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/ProgramPipelineVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/ProgramVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/QueryVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/RenderbufferVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/RendererVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/RenderTargetVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/SamplerVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/SecondaryCommandBuffer.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/SemaphoreVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/ShaderVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/SurfaceVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/SyncVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/TextureVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/TransformFeedbackVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/UtilsVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/VertexArrayVk.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/vk_cache_utils.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/vk_caps_utils.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/vk_format_table_autogen.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/vk_format_utils.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/vk_helpers.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/vk_internal_shaders_autogen.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/vk_mandatory_format_support_table_autogen.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/vk_utils.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/win32/DisplayVkWin32.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/win32/WindowSurfaceVkWin32.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/xcb/DisplayVkXcb.cpp" />
+      <file name="src/libANGLE/renderer/vulkan/xcb/WindowSurfaceVkXcb.cpp" />
+      </section>
+
       <file name="src/libANGLE/ResourceManager.cpp" />
       <file name="src/libANGLE/Sampler.cpp" />
+      <file name="src/libANGLE/Semaphore.cpp" />
       <file name="src/libANGLE/Shader.cpp" />
       <file name="src/libANGLE/State.cpp" />
       <file name="src/libANGLE/Stream.cpp" />
@@ -190,15 +374,40 @@
       <file name="src/libANGLE/Uniform.cpp" />
       <file name="src/libANGLE/validationEGL.cpp" />
       <file name="src/libANGLE/validationES.cpp" />
+      <file name="src/libANGLE/validationES1.cpp" />
       <file name="src/libANGLE/validationES2.cpp" />
       <file name="src/libANGLE/validationES3.cpp" />
       <file name="src/libANGLE/validationES31.cpp" />
+      <file name="src/libANGLE/validationES32.cpp" />
+      <file name="src/libANGLE/validationESEXT.cpp" />
+      <file name="src/libANGLE/validationGL1.cpp" />
+      <file name="src/libANGLE/validationGL11.cpp" />
+      <!--<file name="src/libANGLE/validationGL12.cpp" />-->
+      <file name="src/libANGLE/validationGL13.cpp" />
+      <file name="src/libANGLE/validationGL14.cpp" />
+      <file name="src/libANGLE/validationGL15.cpp" />
+      <file name="src/libANGLE/validationGL2.cpp" />
+      <!--<file name="src/libANGLE/validationGL21.cpp" />-->
+      <file name="src/libANGLE/validationGL3.cpp" />
+      <file name="src/libANGLE/validationGL31.cpp" />
+      <file name="src/libANGLE/validationGL32.cpp" />
+      <file name="src/libANGLE/validationGL33.cpp" />
+      <file name="src/libANGLE/validationGL4.cpp" />
+      <file name="src/libANGLE/validationGL41.cpp" />
+      <file name="src/libANGLE/validationGL42.cpp" />
+      <file name="src/libANGLE/validationGL43.cpp" />
+      <file name="src/libANGLE/validationGL44.cpp" />
+      <file name="src/libANGLE/validationGL45.cpp" />
+      <file name="src/libANGLE/validationGL46.cpp" />
       <file name="src/libANGLE/VaryingPacking.cpp" />
       <file name="src/libANGLE/VertexArray.cpp" />
       <file name="src/libANGLE/VertexAttribute.cpp" />
       <file name="src/libANGLE/WorkerThread.cpp" />
 
+
+
       <file name="src/common/aligned_memory.cpp" />
+      <file name="src/common/android_util.cpp" />
       <file name="src/common/angleutils.cpp" />
       <file name="src/common/debug.cpp" />
       <file name="src/common/event_tracer.cpp" />
@@ -206,40 +415,51 @@
       <file name="src/common/mathutil.cpp" />
       <file name="src/common/matrix_utils.cpp" />
       <file name="src/common/MemoryBuffer.cpp" />
+      <file name="src/common/PackedEGLEnums_autogen.cpp" />
+      <file name="src/common/PackedEnums.cpp" />
+      <file name="src/common/PackedGLEnums_autogen.cpp" />
+      <file name="src/common/PoolAlloc.cpp" />
       <file name="src/common/string_utils.cpp" />
       <file name="src/common/system_utils.cpp" />
-      <file name="src/common/system_utils_win.cpp"  unless="winrt"/>
+      <!--
+      <file name="src/common/system_utils_linux.cpp" />
+      <file name="src/common/system_utils_mac.cpp" />
+      <file name="src/common/system_utils_posix.cpp" />
+      -->
+      <file name="src/common/system_utils_win.cpp" unless="winrt" />
+      <file name="src/common/system_utils_winuwp.cpp" if="winrt" />
+      <file name="src/common/third_party/smhasher/src/PMurHash.cpp" />
       <file name="src/common/tls.cpp" />
       <file name="src/common/uniform_type_info_autogen.cpp" />
       <file name="src/common/utilities.cpp" />
-      <file name="src/common/PackedEnums.cpp" />
-      <file name="src/common/PackedGLEnums_autogen.cpp" />
-      <file name="src/common/PackedEGLEnums_autogen.cpp" />
+
+
+
 
       <file name="src/image_util/copyimage.cpp" />
       <file name="src/image_util/imageformats.cpp" />
       <file name="src/image_util/loadimage.cpp" />
       <file name="src/image_util/loadimage_etc.cpp" />
 
-
       <file name="src/compiler/preprocessor/DiagnosticsBase.cpp" />
       <file name="src/compiler/preprocessor/DirectiveHandlerBase.cpp" />
       <file name="src/compiler/preprocessor/DirectiveParser.cpp" />
-      <file name="src/compiler/preprocessor/ExpressionParser.cpp" />
       <file name="src/compiler/preprocessor/Input.cpp" />
       <file name="src/compiler/preprocessor/Lexer.cpp" />
       <file name="src/compiler/preprocessor/Macro.cpp" />
       <file name="src/compiler/preprocessor/MacroExpander.cpp" />
       <file name="src/compiler/preprocessor/Preprocessor.cpp" />
+      <file name="src/compiler/preprocessor/preprocessor_lex_autogen.cpp" />
+      <file name="src/compiler/preprocessor/preprocessor_tab_autogen.cpp" />
       <file name="src/compiler/preprocessor/Token.cpp" />
-      <file name="src/compiler/preprocessor/Tokenizer.cpp" />
       <file name="src/compiler/translator/ASTMetadataHLSL.cpp" />
+      <file name="src/compiler/translator/AtomicCounterFunctionHLSL.cpp" />
       <file name="src/compiler/translator/blocklayout.cpp" />
       <file name="src/compiler/translator/blocklayoutHLSL.cpp" />
       <file name="src/compiler/translator/BuiltInFunctionEmulator.cpp" />
       <file name="src/compiler/translator/BuiltInFunctionEmulatorGLSL.cpp" />
       <file name="src/compiler/translator/BuiltInFunctionEmulatorHLSL.cpp" />
-      <file name="src/compiler/translator/emulated_builtin_functions_hlsl_autogen.cpp" />
+      <file name="src/compiler/translator/BuiltinsWorkaroundGLSL.cpp" />
       <file name="src/compiler/translator/CallDAG.cpp" />
       <file name="src/compiler/translator/CodeGen.cpp" />
       <file name="src/compiler/translator/CollectVariables.cpp" />
@@ -248,47 +468,120 @@
       <file name="src/compiler/translator/Declarator.cpp" />
       <file name="src/compiler/translator/Diagnostics.cpp" />
       <file name="src/compiler/translator/DirectiveHandler.cpp" />
+      <file name="src/compiler/translator/emulated_builtin_functions_hlsl_autogen.cpp" />
       <file name="src/compiler/translator/ExtensionBehavior.cpp" />
       <file name="src/compiler/translator/ExtensionGLSL.cpp" />
       <file name="src/compiler/translator/FlagStd140Structs.cpp" />
       <file name="src/compiler/translator/FunctionLookup.cpp" />
-      <file name="src/compiler/translator/glslang_lex.cpp" />
-      <file name="src/compiler/translator/glslang_tab.cpp" />
+      <file name="src/compiler/translator/glslang_lex_autogen.cpp" />
+      <file name="src/compiler/translator/glslang_tab_autogen.cpp" />
       <file name="src/compiler/translator/HashNames.cpp" />
       <file name="src/compiler/translator/ImageFunctionHLSL.cpp" />
-      <file name="src/compiler/translator/ImmutableString.cpp" />
       <file name="src/compiler/translator/ImmutableStringBuilder.cpp" />
+      <file name="src/compiler/translator/ImmutableString_autogen.cpp" />
+      <!--<file name="src/compiler/translator/ImmutableString_ESSL_autogen.cpp" />-->
       <file name="src/compiler/translator/InfoSink.cpp" />
       <file name="src/compiler/translator/Initialize.cpp" />
       <file name="src/compiler/translator/InitializeDll.cpp" />
       <file name="src/compiler/translator/IntermNode.cpp" />
       <file name="src/compiler/translator/IsASTDepthBelowLimit.cpp" />
       <file name="src/compiler/translator/Operator.cpp" />
+      <!--
       <file name="src/compiler/translator/OutputESSL.cpp" />
       <file name="src/compiler/translator/OutputGLSL.cpp" />
       <file name="src/compiler/translator/OutputGLSLBase.cpp" />
+      <file name="src/compiler/translator/OutputVulkanGLSL.cpp" />
+      -->
       <file name="src/compiler/translator/OutputHLSL.cpp" />
       <file name="src/compiler/translator/OutputTree.cpp" />
-      <file name="src/compiler/translator/OutputVulkanGLSL.cpp" />
       <file name="src/compiler/translator/ParseContext.cpp" />
       <file name="src/compiler/translator/PoolAlloc.cpp" />
       <file name="src/compiler/translator/QualifierTypes.cpp" />
+      <file name="src/compiler/translator/ResourcesHLSL.cpp" />
       <file name="src/compiler/translator/ShaderLang.cpp" />
+      <file name="src/compiler/translator/ShaderStorageBlockFunctionHLSL.cpp" />
+      <file name="src/compiler/translator/ShaderStorageBlockOutputHLSL.cpp" />
       <file name="src/compiler/translator/ShaderVars.cpp" />
       <file name="src/compiler/translator/StructureHLSL.cpp" />
       <file name="src/compiler/translator/Symbol.cpp" />
       <file name="src/compiler/translator/SymbolTable.cpp" />
       <file name="src/compiler/translator/SymbolTable_autogen.cpp" />
+      <!--
+      <file name="src/compiler/translator/SymbolTable_ESSL_autogen.cpp" tags="optim-none" />
+      -->
       <file name="src/compiler/translator/SymbolUniqueId.cpp" />
       <file name="src/compiler/translator/TextureFunctionHLSL.cpp" />
       <file name="src/compiler/translator/TranslatorESSL.cpp" />
-      <file name="src/compiler/translator/TranslatorGLSL.cpp" />
+      <!--<file name="src/compiler/translator/TranslatorGLSL.cpp" />-->
       <file name="src/compiler/translator/TranslatorHLSL.cpp" />
+      <file name="src/compiler/translator/TranslatorMetal.cpp" />
       <file name="src/compiler/translator/TranslatorVulkan.cpp" />
+      <file name="src/compiler/translator/tree_ops/AddAndTrueToLoopCondition.cpp" />
+      <file name="src/compiler/translator/tree_ops/AddDefaultReturnStatements.cpp" />
+      <file name="src/compiler/translator/tree_ops/ArrayReturnValueToOutParameter.cpp" />
+      <file name="src/compiler/translator/tree_ops/BreakVariableAliasingInInnerLoops.cpp" />
+      <file name="src/compiler/translator/tree_ops/ClampFragDepth.cpp" />
+      <file name="src/compiler/translator/tree_ops/ClampPointSize.cpp" />
+      <file name="src/compiler/translator/tree_ops/DeclareAndInitBuiltinsForInstancedMultiview.cpp" />
+      <file name="src/compiler/translator/tree_ops/DeferGlobalInitializers.cpp" />
+      <file name="src/compiler/translator/tree_ops/EmulateGLFragColorBroadcast.cpp" />
+      <file name="src/compiler/translator/tree_ops/EmulateMultiDrawShaderBuiltins.cpp" />
+      <file name="src/compiler/translator/tree_ops/EmulatePrecision.cpp" />
+      <file name="src/compiler/translator/tree_ops/ExpandIntegerPowExpressions.cpp" />
+      <file name="src/compiler/translator/tree_ops/FoldExpressions.cpp" />
+      <file name="src/compiler/translator/tree_ops/InitializeVariables.cpp" />
+      <file name="src/compiler/translator/tree_ops/NameEmbeddedUniformStructs.cpp" />
+      <file name="src/compiler/translator/tree_ops/NameNamelessUniformBuffers.cpp" />
+      <file name="src/compiler/translator/tree_ops/PruneEmptyCases.cpp" />
+      <file name="src/compiler/translator/tree_ops/PruneNoOps.cpp" />
+      <file name="src/compiler/translator/tree_ops/RecordConstantPrecision.cpp" />
+      <file name="src/compiler/translator/tree_ops/RegenerateStructNames.cpp" />
+      <file name="src/compiler/translator/tree_ops/RemoveArrayLengthMethod.cpp" />
+      <file name="src/compiler/translator/tree_ops/RemoveDynamicIndexing.cpp" />
+      <file name="src/compiler/translator/tree_ops/RemoveInactiveInterfaceVariables.cpp" />
+      <file name="src/compiler/translator/tree_ops/RemoveInvariantDeclaration.cpp" />
+      <file name="src/compiler/translator/tree_ops/RemovePow.cpp" />
+      <file name="src/compiler/translator/tree_ops/RemoveSwitchFallThrough.cpp" />
+      <file name="src/compiler/translator/tree_ops/RemoveUnreferencedVariables.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteAtomicCounters.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteAtomicFunctionExpressions.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteCubeMapSamplersAs2DArray.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteDfdy.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteDoWhile.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteElseBlocks.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteExpressionsWithShaderStorageBlock.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteRepeatedAssignToSwizzled.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteRowMajorMatrices.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteStructSamplers.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteStructSamplersOld.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteTexelFetchOffset.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteUnaryMinusOperatorFloat.cpp" />
+      <file name="src/compiler/translator/tree_ops/RewriteUnaryMinusOperatorInt.cpp" />
+      <file name="src/compiler/translator/tree_ops/ScalarizeVecAndMatConstructorArgs.cpp" />
+      <file name="src/compiler/translator/tree_ops/SeparateArrayConstructorStatements.cpp" />
+      <file name="src/compiler/translator/tree_ops/SeparateArrayInitialization.cpp" />
+      <file name="src/compiler/translator/tree_ops/SeparateDeclarations.cpp" />
+      <file name="src/compiler/translator/tree_ops/SeparateExpressionsReturningArrays.cpp" />
+      <file name="src/compiler/translator/tree_ops/SimplifyLoopConditions.cpp" />
+      <file name="src/compiler/translator/tree_ops/SplitSequenceOperator.cpp" />
+      <file name="src/compiler/translator/tree_ops/UnfoldShortCircuitAST.cpp" />
+      <file name="src/compiler/translator/tree_ops/UnfoldShortCircuitToIf.cpp" />
+      <file name="src/compiler/translator/tree_ops/UseInterfaceBlockFields.cpp" />
+      <file name="src/compiler/translator/tree_ops/VectorizeVectorScalarArithmetic.cpp" />
+      <file name="src/compiler/translator/tree_ops/WrapSwitchStatementsInBlocks.cpp" />
+      <file name="src/compiler/translator/tree_util/FindFunction.cpp" />
+      <file name="src/compiler/translator/tree_util/FindMain.cpp" />
+      <file name="src/compiler/translator/tree_util/FindSymbolNode.cpp" />
+      <file name="src/compiler/translator/tree_util/IntermNodePatternMatcher.cpp" />
+      <file name="src/compiler/translator/tree_util/IntermNode_util.cpp" />
+      <file name="src/compiler/translator/tree_util/IntermTraverse.cpp" />
+      <file name="src/compiler/translator/tree_util/ReplaceShadowingVariables.cpp" />
+      <file name="src/compiler/translator/tree_util/ReplaceVariable.cpp" />
+      <file name="src/compiler/translator/tree_util/RunAtTheEndOfShader.cpp" />
       <file name="src/compiler/translator/Types.cpp" />
-      <file name="src/compiler/translator/UniformHLSL.cpp" />
       <file name="src/compiler/translator/util.cpp" />
       <file name="src/compiler/translator/UtilsHLSL.cpp" />
+      <file name="src/compiler/translator/ValidateAST.cpp" />
       <file name="src/compiler/translator/ValidateGlobalInitializer.cpp" />
       <file name="src/compiler/translator/ValidateLimitations.cpp" />
       <file name="src/compiler/translator/ValidateMaxParameters.cpp" />
@@ -296,123 +589,35 @@
       <file name="src/compiler/translator/ValidateSwitch.cpp" />
       <file name="src/compiler/translator/ValidateVaryingLocations.cpp" />
       <file name="src/compiler/translator/VariablePacker.cpp" />
-      <file name="src/compiler/translator/VersionGLSL.cpp" />
+      <!--<file name="src/compiler/translator/VersionGLSL.cpp" />-->
 
       <file name="src/third_party/compiler/ArrayBoundsClamper.cpp" />
-      <file name="src/third_party/systeminfo/SystemInfo.cpp" />
 
-      <file name="src/libEGL/libEGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/egl/DisplayEGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/egl/FunctionsEGL.cpp" />
+      <file name="src/third_party/systeminfo/SystemInfo.cpp" unless="winrt" />
+
+
       <!--<file name="src/libANGLE/renderer/gl/egl/ozone/DisplayOzone.cpp" />
       <file name="src/libANGLE/renderer/gl/egl/FunctionsEGLDL.cpp" />
       <file name="src/libANGLE/renderer/gl/egl/ozone/SurfaceOzone.cpp" />-->>
-      <file name="src/libANGLE/renderer/gl/egl/PbufferSurfaceEGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/egl/SurfaceEGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/egl/WindowSurfaceEGL.cpp" />
 
-
-      <file name="src/libANGLE/renderer/gl/renderergl_utils.cpp" />
-      <file name="src/libANGLE/renderer/gl/formatutilsgl.cpp" />
-      <file name="src/libANGLE/renderer/gl/VertexArrayGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/TransformFeedbackGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/TextureGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/SyncGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/SurfaceGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/StateManagerGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/ShaderGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/SamplerGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/RendererGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/RenderbufferGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/QueryGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/ProgramPipelineGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/ProgramGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/PathGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/null_functions.cpp" />
-      <file name="src/libANGLE/renderer/gl/FunctionsGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/FramebufferGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/FenceNVGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/DisplayGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/DispatchTableGL_autogen.cpp" />
-      <file name="src/libANGLE/renderer/gl/ContextGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/CompilerGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/ClearMultiviewGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/BufferGL.cpp" />
-      <file name="src/libANGLE/renderer/gl/BlitGL.cpp" />
-
-
-      <file name="src/libGLESv2/libGLESv2_autogen.cpp" />
-      <file name="src/libGLESv2/global_state.cpp" />
-      <file name="src/libGLESv2/entry_points_gles_3_1_autogen.cpp" />
-      <file name="src/libGLESv2/entry_points_gles_3_0_autogen.cpp" />
-      <file name="src/libGLESv2/entry_points_gles_2_0_autogen.cpp" />
-      <file name="src/libGLESv2/entry_points_gles_1_0_autogen.cpp" />
-      <file name="src/libGLESv2/entry_points_gles_ext_autogen.cpp" />
-      <file name="src/libANGLE/Context_gles_1_0.cpp" />
-      <file name="src/libANGLE/validationES1.cpp" />
-      <file name="src/libANGLE/GLES1State.cpp" />
-      <file name="src/libANGLE/GLES1Renderer.cpp" />
-      <file name="src/libGLESv2/proc_table_autogen.cpp" />
-
-      <file name="src/libGLESv2/entry_points_egl_ext.cpp" />
       <file name="src/libGLESv2/entry_points_egl.cpp" />
+      <file name="src/libGLESv2/entry_points_egl_ext.cpp" />
+      <file name="src/libGLESv2/entry_points_gles_1_0_autogen.cpp" />
+      <file name="src/libGLESv2/entry_points_gles_2_0_autogen.cpp" />
+      <file name="src/libGLESv2/entry_points_gles_3_0_autogen.cpp" />
+      <file name="src/libGLESv2/entry_points_gles_3_1_autogen.cpp" />
+      <file name="src/libGLESv2/entry_points_gles_3_2_autogen.cpp" />
+      <file name="src/libGLESv2/entry_points_gles_ext_autogen.cpp" />
+      <file name="src/libGLESv2/global_state.cpp" />
+      <file name="src/libGLESv2/libGLESv2_autogen.cpp" />
+      <file name="src/libGLESv2/proc_table_egl_autogen.cpp" />
 
-      <file name="src/compiler/translator/tree_util/RunAtTheEndOfShader.cpp" />
-      <file name="src/compiler/translator/tree_util/ReplaceVariable.cpp" />
-      <file name="src/compiler/translator/tree_util/IntermTraverse.cpp" />
-      <file name="src/compiler/translator/tree_util/IntermNode_util.cpp" />
-      <file name="src/compiler/translator/tree_util/IntermNodePatternMatcher.cpp" />
-      <file name="src/compiler/translator/tree_util/FindSymbolNode.cpp" />
-      <file name="src/compiler/translator/tree_util/FindMain.cpp" />
-
-      <file name="src/compiler/translator/tree_ops/VectorizeVectorScalarArithmetic.cpp" />
-      <file name="src/compiler/translator/tree_ops/UseInterfaceBlockFields.cpp" />
-      <file name="src/compiler/translator/tree_ops/UnfoldShortCircuitToIf.cpp" />
-      <file name="src/compiler/translator/tree_ops/UnfoldShortCircuitAST.cpp" />
-      <file name="src/compiler/translator/tree_ops/SplitSequenceOperator.cpp" />
-      <file name="src/compiler/translator/tree_ops/SimplifyLoopConditions.cpp" />
-      <file name="src/compiler/translator/tree_ops/SeparateExpressionsReturningArrays.cpp" />
-      <file name="src/compiler/translator/tree_ops/SeparateDeclarations.cpp" />
-      <file name="src/compiler/translator/tree_ops/SeparateArrayInitialization.cpp" />
-      <file name="src/compiler/translator/tree_ops/SeparateArrayConstructorStatements.cpp" />
-      <file name="src/compiler/translator/tree_ops/ScalarizeVecAndMatConstructorArgs.cpp" />
-      <file name="src/compiler/translator/tree_ops/RewriteUnaryMinusOperatorInt.cpp" />
-      <file name="src/compiler/translator/tree_ops/RewriteUnaryMinusOperatorFloat.cpp" />
-      <file name="src/compiler/translator/tree_ops/RewriteTexelFetchOffset.cpp" />
-      <file name="src/compiler/translator/tree_ops/RewriteStructSamplers.cpp" />
-      <file name="src/compiler/translator/tree_ops/RewriteRepeatedAssignToSwizzled.cpp" />
-      <file name="src/compiler/translator/tree_ops/RewriteElseBlocks.cpp" />
-      <file name="src/compiler/translator/tree_ops/RewriteDoWhile.cpp" />
-      <file name="src/compiler/translator/tree_ops/RemoveUnreferencedVariables.cpp" />
-      <file name="src/compiler/translator/tree_ops/RemoveSwitchFallThrough.cpp" />
-      <file name="src/compiler/translator/tree_ops/RemovePow.cpp" />
-      <file name="src/compiler/translator/tree_ops/RemoveInvariantDeclaration.cpp" />
-      <file name="src/compiler/translator/tree_ops/RemoveDynamicIndexing.cpp" />
-      <file name="src/compiler/translator/tree_ops/RemoveArrayLengthMethod.cpp" />
-      <file name="src/compiler/translator/tree_ops/RegenerateStructNames.cpp" />
-      <file name="src/compiler/translator/tree_ops/RecordConstantPrecision.cpp" />
-      <file name="src/compiler/translator/tree_ops/PruneNoOps.cpp" />
-      <file name="src/compiler/translator/tree_ops/PruneEmptyCases.cpp" />
-      <file name="src/compiler/translator/tree_ops/NameEmbeddedUniformStructs.cpp" />
-      <file name="src/compiler/translator/tree_ops/InitializeVariables.cpp" />
-      <file name="src/compiler/translator/tree_ops/FoldExpressions.cpp" />
-      <file name="src/compiler/translator/tree_ops/ExpandIntegerPowExpressions.cpp" />
-      <file name="src/compiler/translator/tree_ops/EmulatePrecision.cpp" />
-      <file name="src/compiler/translator/tree_ops/EmulateGLFragColorBroadcast.cpp" />
-      <file name="src/compiler/translator/tree_ops/DeferGlobalInitializers.cpp" />
-      <file name="src/compiler/translator/tree_ops/DeclareAndInitBuiltinsForInstancedMultiview.cpp" />
-      <file name="src/compiler/translator/tree_ops/ClampPointSize.cpp" />
-      <file name="src/compiler/translator/tree_ops/ClampFragDepth.cpp" />
-      <file name="src/compiler/translator/tree_ops/BreakVariableAliasingInInnerLoops.cpp" />
-      <file name="src/compiler/translator/tree_ops/ArrayReturnValueToOutParameter.cpp" />
-      <file name="src/compiler/translator/tree_ops/AddDefaultReturnStatements.cpp" />
-      <file name="src/compiler/translator/tree_ops/AddAndTrueToLoopCondition.cpp" />
-
-      <file name="src/compiler/translator/tree_ops/WrapSwitchStatementsInBlocks.cpp" />
-
+      <file name="src/libEGL/egl_loader_autogen.cpp" />
+      <file name="src/libEGL/libEGL.cpp" />
 
       <file name="src/common/third_party/smhasher/src/PMurHash.cpp" />
       <file name="src/common/third_party/base/anglebase/sha1.cc" />
+      <file name="src/common/third_party/xxhash/xxhash.c" />
 
 </files>
 
