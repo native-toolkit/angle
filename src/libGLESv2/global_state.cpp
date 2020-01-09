@@ -136,7 +136,7 @@ void SetContextCurrent(Thread *thread, gl::Context *context)
 }
 }  // namespace egl
 
-#ifdef ANGLE_PLATFORM_WINDOWS
+#if defined(ANGLE_PLATFORM_WINDOWS) && !defined(ANGLE_ENABLE_WINDOWS_UWP)
 namespace egl
 {
 
