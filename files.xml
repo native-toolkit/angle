@@ -311,6 +311,8 @@
       <file name="src/libANGLE/renderer/TextureImpl.cpp" />
 
       <section if="false">
+      <file name="src/compiler/translator/TranslatorVulkan.cpp" />
+
       <file name="src/libANGLE/renderer/vulkan/android/DisplayVkAndroid.cpp" />
       <file name="src/libANGLE/renderer/vulkan/android/HardwareBufferImageSiblingVkAndroid.cpp" />
       <file name="src/libANGLE/renderer/vulkan/android/WindowSurfaceVkAndroid.cpp" />
@@ -470,7 +472,7 @@
       <file name="src/compiler/translator/DirectiveHandler.cpp" />
       <file name="src/compiler/translator/emulated_builtin_functions_hlsl_autogen.cpp" />
       <file name="src/compiler/translator/ExtensionBehavior.cpp" />
-      <file name="src/compiler/translator/ExtensionGLSL.cpp" />
+      <!--<file name="src/compiler/translator/ExtensionGLSL.cpp" />-->
       <file name="src/compiler/translator/FlagStd140Structs.cpp" />
       <file name="src/compiler/translator/FunctionLookup.cpp" />
       <file name="src/compiler/translator/glslang_lex_autogen.cpp" />
@@ -511,11 +513,11 @@
       -->
       <file name="src/compiler/translator/SymbolUniqueId.cpp" />
       <file name="src/compiler/translator/TextureFunctionHLSL.cpp" />
-      <file name="src/compiler/translator/TranslatorESSL.cpp" />
+      <!--<file name="src/compiler/translator/TranslatorESSL.cpp" />-->
       <!--<file name="src/compiler/translator/TranslatorGLSL.cpp" />-->
       <file name="src/compiler/translator/TranslatorHLSL.cpp" />
-      <file name="src/compiler/translator/TranslatorMetal.cpp" />
-      <file name="src/compiler/translator/TranslatorVulkan.cpp" />
+      <!--<file name="src/compiler/translator/TranslatorMetal.cpp" />-->
+
       <file name="src/compiler/translator/tree_ops/AddAndTrueToLoopCondition.cpp" />
       <file name="src/compiler/translator/tree_ops/AddDefaultReturnStatements.cpp" />
       <file name="src/compiler/translator/tree_ops/ArrayReturnValueToOutParameter.cpp" />
